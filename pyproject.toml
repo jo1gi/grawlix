@@ -1,0 +1,49 @@
+[project]
+name = "grawlix"
+authors = [
+    { name = "Joakim Holm", email = "mail@joakimholm.xyz" }
+]
+description = "CLI tool for downloading ebooks"
+readme = "README.md"
+keywords = ["ebook", "cli", "downloader"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+dependencies = [
+    "appdirs",
+    "beautifulsoup4",
+    "blackboxprotobuf",
+    "importlib-resources",
+    "lxml",
+    "pycryptodome",
+    "requests",
+    "rich",
+    "tomli"
+]
+dynamic = ["version"]
+
+[project.urls]
+"Homepage" = "https://github.com/jo1gi/ebook-dl"
+"Bugtracker" = "https://github.com/jo1gi/ebook-dl/issues"
+
+[project.scripts]
+audiobook-dl = "grawlix.__main__:main"
+
+
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.setuptools.dynamic]
+version = {attr = "grawlix.__version__"}
+
+[tool.setuptools.package-data]
+mypkg = ["*.txt"]
+
+
+[tool.mypy]
+ignore_missing_imports = true
+allow_untyped_globals = false
+disallow_untyped_calls = true
