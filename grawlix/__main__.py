@@ -29,6 +29,22 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
     return username, password
 
 
+def get_urls(options) -> list[str]:
+    """
+    Retrieves all available urls from input arguments
+    - From urls argument
+    - From file argument
+    """
+    urls = []
+    if options.urls:
+        urls.extend(options.urls)
+    if options.file:
+        with open(options.file, "r") as f:
+            content = f.read()
+            urls.extend(content.split("\n"))
+    return urls
+
+
 def authenticate(source: Source, config: Config, options):
     """
     Authenticate with source
@@ -47,7 +63,8 @@ def authenticate(source: Source, config: Config, options):
 def main() -> None:
     args = arguments.parse_arguments()
     config = load_config()
-    for url in args.urls:
+    urls = get_urls(args)
+    for url in urls:
         source: Source = find_source(url)
         if source.requires_authentication:
             authenticate(source, config, args)

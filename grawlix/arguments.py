@@ -20,6 +20,12 @@ def parse_arguments():
         help = "Links to ebooks",
         nargs = "*"
     )
+    parser.add_argument(
+        '-f',
+        '--file',
+        help = "File with links (One link per line)",
+        dest = "file"
+    )
     # Authentication
     parser.add_argument(
         '-u',
