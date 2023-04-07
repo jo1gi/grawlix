@@ -34,4 +34,10 @@ def parse_arguments():
         dest = "password",
     )
     # Outputs
+    parser.add_argument(
+        '-o',
+        '--output',
+        help = "Output destination",
+        dest = "output"
+    )
     return parser.parse_args()

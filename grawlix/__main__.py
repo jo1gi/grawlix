@@ -54,24 +54,27 @@ def main() -> None:
         result = source.download(url)
         if isinstance(result, Book):
             with logging.progress(result.metadata.title, source.name) as progress:
-                download_with_progress(result, progress)
+                template = args.output or "{title}.{ext}"
+                download_with_progress(result, progress, template)
         elif isinstance(result, Series):
             with logging.progress(result.title, source.name, len(result.book_ids)) as progress:
                 for book_id in result.book_ids:
                     book = source.download_book_from_id(book_id)
-                    download_with_progress(book, progress)
+                    template = args.output or "{series}/{title}.{ext}"
+                    download_with_progress(book, progress, template)
 
 
-def download_with_progress(book: Book, progress: Progress):
+def download_with_progress(book: Book, progress: Progress, template: str):
     """
     Download book with progress bar in cli
 
     :param book: Book to download
     :param progress: Progress object
+    :param template: Output template
     """
     task = logging.add_book(progress, book)
     update_function = partial(progress.advance, task)
-    download_book(book, update_function)
+    download_book(book, update_function, template)
     progress.advance(task, 1)
 
 

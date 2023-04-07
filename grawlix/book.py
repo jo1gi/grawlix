@@ -10,6 +10,14 @@ class Metadata:
     publisher: Optional[str] = None
     identifier: Optional[str] = None
 
+    def as_dict(self) -> dict:
+        return {
+            "title": self.title,
+            "series": self.series or "UNKNOWN",
+            "publisher": self.publisher or "UNKNOWN",
+            "identifier": self.identifier or "UNKNOWN",
+        }
+
 
 @dataclass(slots=True)
 class OnlineFile:

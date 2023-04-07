@@ -9,14 +9,14 @@ from typing import Callable
 from pathlib import Path
 import os
 
-def download_book(book: Book, update_func: Callable) -> None:
+def download_book(book: Book, update_func: Callable, template: str) -> None:
     """
     Download and write book to disk
 
     :param book: Book to download
     """
     output_format = get_default_format(book.data)
-    location = format_output_location(book, output_format)
+    location = format_output_location(book, output_format, template)
     parent = Path(location).parent
     if not parent.exists():
         os.makedirs(parent)
@@ -28,15 +28,17 @@ def download_book(book: Book, update_func: Callable) -> None:
         raise NotImplementedError
 
 
-def format_output_location(book: Book, output_format: OutputFormat) -> str:
+def format_output_location(book: Book, output_format: OutputFormat, template: str) -> str:
     """
     Create path to output location of book
 
     :param book: Book to download
     :param output_format: Output format of book
+    :param template: Template for output path
+    :returns: Output path
     """
-    series = book.metadata.series or "UNKNOWN"
-    return f"{series}/{book.metadata.title}.{output_format.extension}"
+    values = book.metadata.as_dict()
+    return template.format(**values, ext = output_format.extension)
 
 
 def get_default_format(bookdata: BookData) -> OutputFormat:
