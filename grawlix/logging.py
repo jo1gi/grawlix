@@ -9,6 +9,14 @@ from dataclasses import dataclass
 
 console = Console(stderr=True)
 
+def info(msg: str) -> None:
+    """
+    Print message in log
+
+    :param msg: Message to print
+    """
+    console.print(msg)
+
 def progress(category_name: str, source_name: str, count=1) -> Progress:
     if count > 1:
         console.print(f"Downloading [yellow not bold]{count}[/] books in [blue]{category_name}[/] from [magenta]{source_name}[/]")
@@ -19,7 +27,8 @@ def progress(category_name: str, source_name: str, count=1) -> Progress:
         "{task.description}",
         BarColumn(),
         "[progress.percentage]{task.percentage:>3.0f}%",
-        console = console
+        console = console,
+        expand = True
     )
     return progress
 

@@ -1,5 +1,5 @@
 from grawlix import Encryption
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Union, TypeVar, Generic
 
 @dataclass(slots=True)
@@ -7,6 +7,8 @@ class Metadata:
     """Metadata about a book"""
     title: str
     series: Optional[str] = None
+    authors: list[str] = field(default_factory=list)
+    language: Optional[str] = None
     publisher: Optional[str] = None
     identifier: Optional[str] = None
 
@@ -16,6 +18,8 @@ class Metadata:
             "series": self.series or "UNKNOWN",
             "publisher": self.publisher or "UNKNOWN",
             "identifier": self.identifier or "UNKNOWN",
+            "language": self.language or "UNKNOWN",
+            "authors": "; ".join(self.authors),
         }
 
 

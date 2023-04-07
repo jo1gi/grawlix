@@ -1,5 +1,6 @@
 from grawlix.book import Book, BookData, SingleFile, ImageList, OnlineFile
 from grawlix.exceptions import GrawlixError
+from grawlix.logging import info
 
 from .output_format import OutputFormat
 from .epub import Epub
@@ -17,6 +18,9 @@ def download_book(book: Book, update_func: Callable, template: str) -> None:
     """
     output_format = get_default_format(book.data)
     location = format_output_location(book, output_format, template)
+    if os.path.exists(location):
+        info("Skipping - File already exists")
+        return
     parent = Path(location).parent
     if not parent.exists():
         os.makedirs(parent)

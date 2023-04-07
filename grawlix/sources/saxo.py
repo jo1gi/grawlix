@@ -7,7 +7,7 @@ from .source import Source
 class Saxo(Source):
     name: str = "Saxo"
     match = [
-        r"https://(www.)?saxo.(com|dk)/[^/]+/.+\d+$"
+        r"https://(\w+\.)?saxo.(com|dk)/.+\d+$"
     ]
     _authentication_methods = [ "login" ]
     user_id: str
@@ -102,7 +102,11 @@ class Saxo(Source):
         :param metadata: Metadata response from saxo
         :returns: Metadata formatted as `grawlix.Metadata`
         """
-        return Metadata(metadata["title"])
+        return Metadata(
+            title = metadata["title"],
+            authors = [metadata["author"]] if "author" in metadata else [],
+            language = metadata.get("languageLocalized")
+        )
 
 
     @staticmethod
