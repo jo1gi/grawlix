@@ -1,5 +1,6 @@
 from grawlix.book import Book, Metadata, SingleFile, OnlineFile
 from grawlix import AESEncryption
+from grawlix.exceptions import ThrottleError
 
 import re
 from .source import Source
@@ -87,11 +88,14 @@ class Saxo(Source):
 
         :param ebook_id: Id of ebook file
         :returns: Link to ebook file
+        :raises ThrottleError: If there have been too many downloads
         """
         response = self._session.get(
             f"https://api-read.saxo.com/api/v1/book/{ebook_id}/content/encryptedstream/"
-        )
-        return response.json()["link"]
+        ).json()
+        if not "link" in response:
+            raise ThrottleError
+        return response["link"]
 
 
     @staticmethod

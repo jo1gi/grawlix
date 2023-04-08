@@ -18,3 +18,6 @@ class SourceNotAuthenticated(GrawlixError):
 
 class MissingArgument(GrawlixError):
     pass
+
+class ThrottleError(GrawlixError):
+    pass
