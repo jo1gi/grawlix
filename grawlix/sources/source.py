@@ -13,6 +13,7 @@ class Source(Generic[T]):
     name: str = "UNKNOWN"
     match: list[str] = []
     _authentication_methods: list[str] = []
+    authenticated = False
 
     def __init__(self):
         self._session = requests.Session()

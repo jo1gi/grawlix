@@ -1,7 +1,7 @@
 from .book import Book, Series
 from .config import load_config, Config, SourceConfig
 from .exceptions import SourceNotAuthenticated
-from .sources import find_source, Source
+from .sources import load_source, Source
 from .output import download_book
 from . import  arguments, logging
 
@@ -53,9 +53,11 @@ def authenticate(source: Source, config: Config, options):
     :param config: Content of config file
     :param options: Command line options
     """
+    logging.info(f"Authenticating with source [magenta]{source.name}[/]")
     if source.supports_login:
         username, password = get_login(source, config, options)
-        source.login(username, password) 
+        source.login(username, password)
+        source.authenticated = True
     else:
         raise SourceNotAuthenticated
 
@@ -65,8 +67,8 @@ def main() -> None:
     config = load_config()
     urls = get_urls(args)
     for url in urls:
-        source: Source = find_source(url)
-        if source.requires_authentication:
+        source: Source = load_source(url)
+        if not source.authenticated and source.requires_authentication:
             authenticate(source, config, args)
         result = source.download(url)
         if isinstance(result, Book):
@@ -79,6 +81,7 @@ def main() -> None:
                     book = source.download_book_from_id(book_id)
                     template = args.output or "{series}/{title}.{ext}"
                     download_with_progress(book, progress, template)
+        logging.info("")
 
 
 def download_with_progress(book: Book, progress: Progress, template: str):

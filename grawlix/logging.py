@@ -28,7 +28,6 @@ def progress(category_name: str, source_name: str, count=1) -> Progress:
         BarColumn(),
         "[progress.percentage]{task.percentage:>3.0f}%",
         console = console,
-        expand = True
     )
     return progress
 
