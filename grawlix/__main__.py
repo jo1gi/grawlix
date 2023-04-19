@@ -5,9 +5,10 @@ from .sources import load_source, Source
 from .output import download_book
 from . import  arguments, logging
 
-from typing import Tuple
+from typing import Tuple, Optional
 from rich.progress import Progress
 from functools import partial
+import os
 
 
 def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
@@ -45,6 +46,20 @@ def get_urls(options) -> list[str]:
     return urls
 
 
+def get_cookie_file(options) -> Optional[str]:
+    """
+    Get path to cookie file
+
+    :param options: Cli arguments
+    :returns: Path to cookie file
+    """
+    if options.cookie_file is not None and os.path.exists(options.cookie_file):
+        return options.cookie_file
+    if os.path.exists("./cookies.txt"):
+        return "./cookies.txt"
+    return None
+
+
 def authenticate(source: Source, config: Config, options):
     """
     Authenticate with source
@@ -58,6 +73,10 @@ def authenticate(source: Source, config: Config, options):
         username, password = get_login(source, config, options)
         source.login(username, password)
         source.authenticated = True
+    if source.supports_cookies:
+        cookie_file = get_cookie_file(options)
+        if cookie_file:
+            source.load_cookies(cookie_file)
     else:
         raise SourceNotAuthenticated
 

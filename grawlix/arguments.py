@@ -39,6 +39,12 @@ def parse_arguments():
         help = "Password for login",
         dest = "password",
     )
+    parser.add_argument(
+        '-c',
+        '--cookies',
+        help = "Path to netscape cookie file",
+        dest = "cookie_file"
+    )
     # Outputs
     parser.add_argument(
         '-o',
