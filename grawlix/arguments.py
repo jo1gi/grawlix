@@ -2,7 +2,7 @@ from grawlix import __version__
 
 import argparse
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     # Help
     parser = argparse.ArgumentParser(
         prog = "grawlix",
