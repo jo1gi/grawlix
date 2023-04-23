@@ -39,6 +39,11 @@ def parse_arguments():
         help = "Password for login",
         dest = "password",
     )
+    parser.add_argument(
+        '--library',
+        help = "Library for login",
+        dest = "library",
+    )
     # Outputs
     parser.add_argument(
         '-o',

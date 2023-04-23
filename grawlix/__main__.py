@@ -5,12 +5,12 @@ from .sources import load_source, Source
 from .output import download_book
 from . import  arguments, logging
 
-from typing import Tuple
+from typing import Tuple, Optional
 from rich.progress import Progress
 from functools import partial
 
 
-def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
+def get_login(source: Source, config: Config, options) -> Tuple[str, str, Optional[str]]:
     """
     Get login credentials for source
 
@@ -23,10 +23,11 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
     if source_name in config.sources:
         username = config.sources[source_name].username or options.username
         password = config.sources[source_name].password or options.password
+        library = config.sources[source_name].library or options.library
     else:
         username = options.username
         password = options.password
-    return username, password
+    return username, password, library
 
 
 def get_urls(options) -> list[str]:
@@ -55,8 +56,8 @@ def authenticate(source: Source, config: Config, options):
     """
     logging.info(f"Authenticating with source [magenta]{source.name}[/]")
     if source.supports_login:
-        username, password = get_login(source, config, options)
-        source.login(username, password)
+        username, password, library = get_login(source, config, options)
+        source.login(username, password, library=library)
         source.authenticated = True
     else:
         raise SourceNotAuthenticated

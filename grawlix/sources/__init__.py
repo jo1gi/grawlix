@@ -1,6 +1,7 @@
 from grawlix.exceptions import NoSourceFound
 
 from .source import Source
+from .ereolen import Ereolen
 from .flipp import Flipp
 from .mangaplus import MangaPlus
 from .saxo import Saxo
@@ -49,6 +50,7 @@ def get_source_classes() -> list[type[Source]]:
     :returns: A list of all available source types
     """
     return [
+        Ereolen,
         Flipp,
         MangaPlus,
         Saxo,
