@@ -25,7 +25,7 @@ class OutputFormat:
         """
         if not book.file.extension == self.extension:
             raise UnsupportedOutputFormat
-        self._download_and_write_file(book.file, location)
+        self._download_and_write_file(book.file, location, update_func)
 
 
     def dl_image_list(self, book: ImageList, location: str, update_func: Update) -> None:
@@ -39,30 +39,38 @@ class OutputFormat:
         raise UnsupportedOutputFormat
 
 
-    def _download_file(self, file: OnlineFile) -> bytes:
+    def _download_file(self, file: OnlineFile, update: Update = None) -> bytes:
         """
         Download `grawlix.OnlineFile` 
 
         :param file: File to download
+        :param update: Update function that is called with a percentage every time a chunk is downloaded
         :returns: Content of downloaded file
         """
-        response = self._session.get(
+        request = self._session.get(
             file.url,
-            headers = file.headers
+            headers = file.headers,
+            stream = True
         )
-        content = response.content
+        total_filesize = int(request.headers["Content-length"])
+        content = b""
+        for chunk in request.iter_content(chunk_size=1024):
+            content += chunk
+            if update:
+                update(len(chunk)/total_filesize)
         if file.encryption is not None:
             content = decrypt(content, file.encryption)
         return content
 
 
-    def _download_and_write_file(self, file: OnlineFile, location: str) -> None:
+    def _download_and_write_file(self, file: OnlineFile, location: str, update: Update = None) -> None:
         """
         Download `grawlix.OnlineFile` and write to content to disk
 
         :param file: File to download
         :param location: Path to where the file is written
+        :param update: Update function that is called with a percentage every time a chunk is downloaded
         """
-        content = self._download_file(file)
+        content = self._download_file(file, update)
         with open(location, "wb") as f:
             f.write(content)

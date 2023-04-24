@@ -10,6 +10,7 @@ class SourceConfig:
     """Stores configuration for source"""
     username: Optional[str]
     password: Optional[str]
+    library: Optional[str]
 
 
 @dataclass(slots=True)
@@ -37,5 +38,6 @@ def load_config() -> Config:
             sources[key] = SourceConfig (
                 username = values.get("username"),
                 password = values.get("password"),
+                library = values.get("library"),
             )
     return Config(sources)

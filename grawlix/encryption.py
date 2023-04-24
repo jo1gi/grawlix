@@ -10,10 +10,18 @@ class AESEncryption:
 
 
 @dataclass(slots=True)
+class AESCTREncryption:
+    key: bytes
+    nonce: bytes
+    initial_value: bytes
+
+
+@dataclass(slots=True)
 class XOrEncryption:
     key: bytes
 
 Encryption = Union[
+    AESCTREncryption,
     AESEncryption,
     XOrEncryption
 ]
@@ -26,6 +34,14 @@ def decrypt(data: bytes, encryption: Encryption) -> bytes:
     :param encryption: Information about how to decrypt
     :returns: Decrypted data
     """
+    if isinstance(encryption, AESCTREncryption):
+        cipher = AES.new(
+            key = encryption.key,
+            mode = AES.MODE_CTR,
+            nonce = encryption.nonce,
+            initial_value = encryption.initial_value
+        )
+        return cipher.decrypt(data)
     if isinstance(encryption, AESEncryption):
         cipher = AES.new(encryption.key, AES.MODE_CBC, encryption.iv)
         return cipher.decrypt(data)
