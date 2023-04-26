@@ -17,28 +17,28 @@ class MangaPlus(Source):
     _authentication_methods: list[str] = []
 
 
-    def download(self, url: str) -> Result:
+    async def download(self, url: str) -> Result:
         if re.match(self.match[0], url):
             issue_id = url.split('/')[-1]
-            return self._download_issue(issue_id)
+            return await self._download_issue(issue_id)
         if re.match(self.match[1], url):
             series_id = url.split("/")[-1]
-            return self._download_series(series_id)
+            return await self._download_series(series_id)
         raise InvalidUrl
 
 
-    def download_book_from_id(self, book_id: str) -> Book:
+    async def download_book_from_id(self, book_id: str) -> Book:
         return self._download_issue(book_id)
 
 
-    def _download_series(self, series_id: str) -> Series:
+    async def _download_series(self, series_id: str) -> Series:
         """
         Download series from Manga Plus
 
         :param series_id: Identifier for series
         :returns: Series data
         """
-        content = self._session.get(
+        response = await self._client.get(
             f"https://jumpg-api.tokyo-cdn.com/api/title_detailV2",
             params = {
                 "title_id": series_id,
@@ -48,8 +48,8 @@ class MangaPlus(Source):
                 "app_ver": "40",
                 "secret": "2afb69fbb05f57a1856cf75e1c4b6ee6"
             },
-        ).content
-        data, _ = blackboxprotobuf.protobuf_to_json(content)
+        )
+        data, _ = blackboxprotobuf.protobuf_to_json(response.content)
         parsed = json.loads(data)
         title = parsed["1"]["8"]["1"]["2"]
         issues = []
@@ -70,7 +70,7 @@ class MangaPlus(Source):
             book_ids = issues
         )
 
-    def _download_issue(self, issue_id: str) -> Book:
+    async def _download_issue(self, issue_id: str) -> Book:
         """
         Download issue from Manga Plus
 
@@ -78,10 +78,10 @@ class MangaPlus(Source):
         :returns: Issue metadata
         """
         url = f"https://jumpg-webapi.tokyo-cdn.com/api/manga_viewer?chapter_id={issue_id}&split=yes&img_quality=super_high"
-        content = self._session.get(url).content
-        response, _ = blackboxprotobuf.protobuf_to_json(content)
+        response = await self._client.get(url)
+        content, _ = blackboxprotobuf.protobuf_to_json(response.content)
         images = []
-        parsed = json.loads(response)
+        parsed = json.loads(content)
         for image in parsed["1"]["10"]["1"]:
             if "1" in image:
                 images.append(

@@ -14,12 +14,12 @@ dependencies = [
     "appdirs",
     "beautifulsoup4",
     "blackboxprotobuf",
+    "httpx",
     "importlib-resources",
     "lxml",
     "pycryptodome",
-    "requests",
     "rich",
-    "tomli"
+    "tomli",
 ]
 dynamic = ["version"]
 
@@ -28,7 +28,7 @@ dynamic = ["version"]
 "Bugtracker" = "https://github.com/jo1gi/ebook-dl/issues"
 
 [project.scripts]
-audiobook-dl = "grawlix.__main__:main"
+audiobook-dl = "grawlix.__main__:run"
 
 
 [build-system]

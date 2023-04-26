@@ -18,22 +18,22 @@ class Flipp(Source):
     _authentication_methods: list[str] = []
     _login_cache: Optional[dict] = None
 
-    def download(self, url: str) -> Result:
+    async def download(self, url: str) -> Result:
         if re.match(self.match[0], url):
             eid = self._get_eid(url)
-            publication_id = self._get_series_id(eid)
-            return self._download_book(eid, publication_id)
+            publication_id = await self._get_series_id(eid)
+            return await self._download_book(eid, publication_id)
         elif re.match(self.match[1], url):
-            return self._download_series(url)
+            return await self._download_series(url)
         raise InvalidUrl
 
 
-    def download_book_from_id(self, book_id: Tuple[str, str]) -> Book:
+    async def download_book_from_id(self, book_id: Tuple[str, str]) -> Book:
         series_id, issue_id = book_id
-        return self._download_book(issue_id, series_id)
+        return await self._download_book(issue_id, series_id)
 
 
-    def _download_series(self, url: str) -> Series:
+    async def _download_series(self, url: str) -> Series:
         """
         Download series with book ids from Flipp
 
@@ -41,7 +41,7 @@ class Flipp(Source):
         :returns: Series object
         """
         series_id = url.split("/")[-1]
-        login_info = self._download_login_info()
+        login_info = await self._download_login_info()
         series_metadata = self._extract_series_data(login_info, series_id)
         issues = []
         for issue in series_metadata["issues"]:
@@ -53,7 +53,7 @@ class Flipp(Source):
         )
 
 
-    def _download_login_info(self) -> dict:
+    async def _download_login_info(self) -> dict:
         """
         Download login info from Flipp
         Will use cache if available
@@ -62,7 +62,7 @@ class Flipp(Source):
         """
         if self._login_cache:
             return self._login_cache
-        login_info = self._session.post(
+        login_cache = await self._client.post(
             "https://flippapi.egmontservice.com/api/signin",
             headers = {
                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:111.0) Gecko/20100101 Firefox/111.0"
@@ -77,9 +77,9 @@ class Flipp(Source):
                 "uuid": "",
                 "os": ""
             }
-        ).json()
-        self.login_cache = login_info
-        return login_info
+        )
+        self._login_cache = login_cache.json()
+        return login_cache.json()
 
 
     def _extract_series_data(self, response: dict, series_id: str) -> dict:
@@ -96,7 +96,7 @@ class Flipp(Source):
         raise DataNotFound
 
 
-    def _download_book(self, issue_id: str, series_id: str) -> Book:
+    async def _download_book(self, issue_id: str, series_id: str) -> Book:
         """
         Download book from Flipp
 
@@ -104,8 +104,8 @@ class Flipp(Source):
         :param series_id: Series identifier
         :returns: Book metadata
         """
-        pages = self._get_pages(issue_id, series_id)
-        metadata = self._get_metadata(issue_id, series_id)
+        pages = await self._get_pages(issue_id, series_id)
+        metadata = await self._get_metadata(issue_id, series_id)
         return Book(
             data = ImageList(pages),
             metadata = Metadata(
@@ -116,7 +116,7 @@ class Flipp(Source):
         )
 
 
-    def _get_metadata(self, issue_id: str, series_id: str) -> dict:
+    async def _get_metadata(self, issue_id: str, series_id: str) -> dict:
         """
         Download and extract issue data
 
@@ -124,7 +124,7 @@ class Flipp(Source):
         :param series_id: Series id
         :returns: Issue metadata
         """
-        login_info = self._download_login_info()
+        login_info = await self._download_login_info()
         series_metadata = self._extract_series_data(login_info, series_id)
         for issue in series_metadata["issues"]:
             if issue["customIssueCode"] == issue_id:
@@ -136,14 +136,14 @@ class Flipp(Source):
         return get_arg_from_url(url, "edid")
 
 
-    def _get_series_id(self, issue_id: str) -> str:
+    async def _get_series_id(self, issue_id: str) -> str:
         """
         Download series id from issue id
 
         :param issue_id: Issue id
         :returns: Series id
         """
-        response = self._session.get(f"{BASEURL}/production/default.aspx?pubname=&edid={issue_id}")
+        response = await self._client.get(f"{BASEURL}/production/default.aspx?pubname=&edid={issue_id}")
         # TODO Make faster
         search = re.search(r'publicationguid = "([^"]+)', response.text)
         if search is None:
@@ -151,7 +151,7 @@ class Flipp(Source):
         return search.group(1)
 
 
-    def _get_pages(self, issue_id: str, series_id: str) -> list[OnlineFile]:
+    async def _get_pages(self, issue_id: str, series_id: str) -> list[OnlineFile]:
         """
         Download page metadata for book
 
@@ -159,7 +159,7 @@ class Flipp(Source):
         :param series_id: Series id
         :return: Page image links
         """
-        response = self._session.get(
+        response = await self._client.get(
             f"{BASEURL}/get_page_groups_from_eid.aspx?pubid={series_id}&eid={issue_id}",
         )
         result = []
