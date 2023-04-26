@@ -10,7 +10,7 @@ from typing import Callable
 from pathlib import Path
 import os
 
-def download_book(book: Book, update_func: Callable, template: str) -> None:
+async def download_book(book: Book, update_func: Callable, template: str) -> None:
     """
     Download and write book to disk
 
@@ -25,11 +25,12 @@ def download_book(book: Book, update_func: Callable, template: str) -> None:
     if not parent.exists():
         os.makedirs(parent)
     if isinstance(book.data, SingleFile):
-        output_format.dl_single_file(book.data, location, update_func)
+        await output_format.dl_single_file(book.data, location, update_func)
     elif isinstance(book.data, ImageList):
-        output_format.dl_image_list(book.data, location, update_func)
+        await output_format.dl_image_list(book.data, location, update_func)
     else:
         raise NotImplementedError
+    await output_format.close()
 
 
 def format_output_location(book: Book, output_format: OutputFormat, template: str) -> str:

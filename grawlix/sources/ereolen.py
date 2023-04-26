@@ -24,17 +24,17 @@ class Ereolen(Source):
     _login_credentials = [ "username", "password", "library" ]
 
 
-    def login(self, username: str, password: str, **kwargs) -> None:
+    async def login(self, username: str, password: str, **kwargs) -> None:
         library = kwargs["library"]
-        login_page = self._session.get(LOGIN_PAGE_URL).text
-        login_soup = BeautifulSoup(login_page, "lxml")
+        login_page = await self._client.get(LOGIN_PAGE_URL, follow_redirects=True)
+        login_soup = BeautifulSoup(login_page.text, "lxml")
         borchk_login_form = login_soup.find(id="borchk-login-form")
         login_path = borchk_login_form.get("action")
         library_attr_name = borchk_login_form.find("label").get("for")
-        libraries = self._extract_available_libraries(login_page)
+        libraries = self._extract_available_libraries(login_page.text)
         if not library in libraries:
             library = nearest_string(library, list(libraries.keys()))
-        self._session.post(
+        await self._client.post(
             f"https://login.bib.dk{login_path}",
             headers = { "Content-Type": "application/x-www-form-urlencoded" },
             data = {
@@ -42,7 +42,8 @@ class Ereolen(Source):
                 "agency": libraries[library],
                 "userId": username,
                 "pincode": password
-            }
+            },
+            follow_redirects = True
         )
 
 
@@ -65,11 +66,12 @@ class Ereolen(Source):
         return libraries
 
 
-    def download(self, url: str) -> Result:
-        book_id = self._get_book_id(url)
-        metadata = self._session.get(
-            f"https://bookstreaming.pubhub.dk/v1/order/metadata/{book_id}"
-        ).json()
+    async def download(self, url: str) -> Result:
+        book_id: str = await self._get_book_id(url)
+        metadata_response = await self._client.get(
+            f"https://bookstreaming.pubhub.dk/v1/order/metadata/{book_id}",
+        )
+        metadata = metadata_response.json()
         key = self._decrypt_key(metadata["key"])
         return Book(
             data = SingleFile(
@@ -102,7 +104,7 @@ class Ereolen(Source):
         return cipher.decrypt(decoded_key)[:16]
 
 
-    def _get_book_id(self, url: str) -> str:
+    async def _get_book_id(self, url: str) -> str:
         """
         Download and extract book_id
 
@@ -110,20 +112,20 @@ class Ereolen(Source):
         :returns: Book id
         """
         if re.match(self.match[0], url):
-            return self._get_book_id_from_reader(url)
+            return await self._get_book_id_from_reader(url)
         if re.match(self.match[1], url):
-            return self._get_book_id_from_reader(f"{url}/read")
+            return await self._get_book_id_from_reader(f"{url}/read")
         else:
             raise InvalidUrl
 
 
-    def _get_book_id_from_reader(self, url: str) -> str:
+    async def _get_book_id_from_reader(self, url: str) -> str:
         """
         Download and extract book_id from reader page
 
         :param url: Url to reader page
         :returns: Book id
         """
-        page = self._session.get(url).text
-        soup = BeautifulSoup(page, "lxml")
+        page = await self._client.get(url)
+        soup = BeautifulSoup(page.text, "lxml")
         return soup.find("div", id="pubhub-reader").get("order-id")

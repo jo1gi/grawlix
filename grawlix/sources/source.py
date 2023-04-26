@@ -1,7 +1,7 @@
 from grawlix.book import Book, Series, Result
 
 from typing import Generic, TypeVar, Tuple
-import requests
+import httpx
 
 T = TypeVar("T")
 
@@ -17,7 +17,7 @@ class Source(Generic[T]):
     authenticated = False
 
     def __init__(self):
-        self._session = requests.Session()
+        self._client = httpx.AsyncClient()
 
 
     @property
@@ -32,7 +32,7 @@ class Source(Generic[T]):
         return "login" in self._authentication_methods
 
 
-    def login(self, username: str, password: str, **kwargs: str):
+    async def login(self, username: str, password: str, **kwargs: str):
         """
         Login to source
 
@@ -42,7 +42,7 @@ class Source(Generic[T]):
         raise NotImplementedError
 
 
-    def download(self, url: str) -> Result[T]:
+    async def download(self, url: str) -> Result[T]:
         """
         Download book metadata from source
 
@@ -52,7 +52,7 @@ class Source(Generic[T]):
         raise NotImplementedError
 
 
-    def download_book_from_id(self, book_id: T) -> Book:
+    async def download_book_from_id(self, book_id: T) -> Book:
         """
         Download book from id
 

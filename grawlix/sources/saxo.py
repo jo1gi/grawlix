@@ -13,8 +13,8 @@ class Saxo(Source):
     _authentication_methods = [ "login" ]
     user_id: str
 
-    def login(self, username: str, password: str, **kwargs) -> None:
-        response = self._session.post(
+    async def login(self, username: str, password: str, **kwargs) -> None:
+        response = await self._client.post(
             "https://auth-read.saxo.com/auth/token",
             data = {
                 "username": username,
@@ -27,7 +27,7 @@ class Saxo(Source):
         )
         json = response.json()
         bearer_token = json["access_token"]
-        self._session.headers = {
+        self._client.headers = {
             "Appauthorization": f"bearer {bearer_token}",
             "App-Os": "android",
             "App-Version": "6.2.4"
@@ -35,16 +35,16 @@ class Saxo(Source):
         self.user_id = json["id"]
 
 
-    def download(self, url: str) -> Book:
+    async def download(self, url: str) -> Book:
         isbn = self._extract_isbn_from_url(url)
-        book_id = self._get_book_id(isbn)
-        metadata = self._get_book_metadata(book_id)
+        book_id = await self._get_book_id(isbn)
+        metadata = await self._get_book_metadata(book_id)
         ebook_id = metadata["id"] # Id of ebook file
         return Book(
             metadata = self._extract_metadata(metadata),
             data = SingleFile(
                 OnlineFile(
-                    url = self._get_book_file_link(ebook_id),
+                    url = await self._get_book_file_link(ebook_id),
                     extension = "epub",
                     # Encryption keys extracted from app
                     encryption = AESEncryption(
@@ -56,33 +56,33 @@ class Saxo(Source):
         )
 
 
-    def _get_book_id(self, isbn: str) -> str:
+    async def _get_book_id(self, isbn: str) -> str:
         """
         Download internal book id of book from isbn
 
         :param isbn: Isbn of book
         :returns: Saxo internal book id
         """
-        response = self._session.get(
+        response = await self._client.get(
             f"https://api-read.saxo.com/api/v2/search/user/{self.user_id}/premium/books/{isbn}"
         )
         return response.json()["items"][0]["bookId"]
 
 
-    def _get_book_metadata(self, book_id: str) -> dict:
+    async def _get_book_metadata(self, book_id: str) -> dict:
         """
         Download metadata of book
 
         :param book_id: Id of book
         :returns: Metadata of book
         """
-        response = self._session.get(
+        response = await self._client.get(
             f"https://api-read.saxo.com/api/v2/book/{book_id}/user/{self.user_id}/details"
         )
         return response.json()["ebooks"][0]
 
 
-    def _get_book_file_link(self, ebook_id: str) -> str:
+    async def _get_book_file_link(self, ebook_id: str) -> str:
         """
         Download link to epub file
 
@@ -90,12 +90,13 @@ class Saxo(Source):
         :returns: Link to ebook file
         :raises ThrottleError: If there have been too many downloads
         """
-        response = self._session.get(
+        response = await self._client.get(
             f"https://api-read.saxo.com/api/v1/book/{ebook_id}/content/encryptedstream/"
-        ).json()
-        if not "link" in response:
+        )
+        json = response.json()
+        if not "link" in json:
             raise ThrottleError
-        return response["link"]
+        return json["link"]
 
 
     @staticmethod

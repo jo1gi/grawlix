@@ -27,10 +27,10 @@ mkShell {
       appdirs
       beautifulsoup4
       blackboxprotobuf
+      httpx
       importlib-resources
       lxml
       pycryptodome
-      requests
       rich
       tomli
 
