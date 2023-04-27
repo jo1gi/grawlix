@@ -4,6 +4,7 @@ from .source import Source
 from .ereolen import Ereolen
 from .flipp import Flipp
 from .mangaplus import MangaPlus
+from .royal_road import RoyalRoad
 from .saxo import Saxo
 from .webtoons import Webtoons
 
@@ -53,6 +54,7 @@ def get_source_classes() -> list[type[Source]]:
         Ereolen,
         Flipp,
         MangaPlus,
+        RoyalRoad,
         Saxo,
         Webtoons
     ]

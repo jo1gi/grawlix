@@ -46,9 +46,21 @@ class ImageList:
     """
     images: list[OnlineFile]
 
+@dataclass(slots=True)
+class HtmlFile:
+    title: str
+    file: OnlineFile
+    selector: Optional[dict[str, str]]
+
+@dataclass(slots=True)
+class HtmlFiles:
+    cover: OnlineFile
+    htmlfiles: list[HtmlFile]
+
 BookData = Union[
     SingleFile,
-    ImageList
+    ImageList,
+    HtmlFiles
 ]
 
 @dataclass(slots=True)
@@ -56,6 +68,7 @@ class Book:
     """Stores information about a book"""
     metadata: Metadata
     data: BookData
+    overwrite: bool = False
 
 T = TypeVar("T")
 

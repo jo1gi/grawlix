@@ -1,5 +1,6 @@
-from .output_format import OutputFormat, Update
+from .output_format import OutputFormat, Update, Book
 from grawlix.book import ImageList, OnlineFile
+from grawlix.exceptions import UnsupportedOutputFormat
 
 from zipfile import ZipFile
 import asyncio
@@ -9,8 +10,11 @@ class Cbz(OutputFormat):
 
     extension: str = "cbz"
 
-    async def dl_image_list(self, book: ImageList, location: str, update: Update) -> None:
-        image_count = len(book.images)
+    async def dl_image_list(self, book: Book, location: str, update: Update) -> None:
+        if not isinstance(book.data, ImageList):
+            raise UnsupportedOutputFormat
+        images = book.data.images
+        image_count = len(images)
         with ZipFile(location, mode="w") as zip:
             async def download_page(index: int, file: OnlineFile):
                 content = await self._download_file(file)
@@ -19,6 +23,6 @@ class Cbz(OutputFormat):
                     update(1/image_count)
             tasks = [
                 asyncio.create_task(download_page(index, file))
-                for index, file in enumerate(book.images)
+                for index, file in enumerate(images)
             ]
             await asyncio.wait(tasks)
