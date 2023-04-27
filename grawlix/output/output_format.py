@@ -1,4 +1,4 @@
-from grawlix.book import Book, SingleFile, OnlineFile, ImageList
+from grawlix.book import Book, SingleFile, OnlineFile, ImageList, HtmlFiles, Book
 from grawlix.exceptions import UnsupportedOutputFormat
 from grawlix.encryption import decrypt
 
@@ -20,7 +20,7 @@ class OutputFormat:
         await self._client.aclose()
 
 
-    async def dl_single_file(self, book: SingleFile, location: str, update_func: Update) -> None:
+    async def dl_single_file(self, book: Book, location: str, update_func: Update) -> None:
         """
         Download and write an `grawlix.SingleFile` to disk
 
@@ -28,14 +28,27 @@ class OutputFormat:
         :param location: Path to where the file is written
         :raises UnsupportedOutputFormat: If datatype is not supported by format
         """
-        if not book.file.extension == self.extension:
+        if not isinstance(book.data, SingleFile):
             raise UnsupportedOutputFormat
-        await self._download_and_write_file(book.file, location, update_func)
+        if not book.data.file.extension == self.extension:
+            raise UnsupportedOutputFormat
+        await self._download_and_write_file(book.data.file, location, update_func)
 
 
-    async def dl_image_list(self, book: ImageList, location: str, update_func: Update) -> None:
+    async def dl_image_list(self, book: Book, location: str, update_func: Update) -> None:
         """
         Download and write an `grawlix.ImageList` to disk
+
+        :param book: Book to download
+        :param location: Path to where the file is written
+        :raises UnsupportedOutputFormat: If datatype is not supported by format
+        """
+        raise UnsupportedOutputFormat
+
+
+    async def dl_html_files(self, book: Book, location: str, update_func: Update) -> None:
+        """
+        Download and write a `grawlix.HtmlFiles` to disk
 
         :param book: Book to download
         :param location: Path to where the file is written
@@ -53,7 +66,7 @@ class OutputFormat:
         :returns: Content of downloaded file
         """
         content = b""
-        async with self._client.stream("GET", file.url, headers = file.headers) as request:
+        async with self._client.stream("GET", file.url, headers = file.headers, follow_redirects=True) as request:
             total_filesize = int(request.headers["Content-length"])
             async for chunk in request.aiter_bytes():
                 content += chunk

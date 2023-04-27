@@ -1,10 +1,10 @@
-from grawlix.book import Book, BookData, SingleFile, ImageList, OnlineFile
+from grawlix.book import Book, BookData, SingleFile, ImageList, OnlineFile, HtmlFiles
 from grawlix.exceptions import GrawlixError
 from grawlix.logging import info
 
 from .output_format import OutputFormat
-from .epub import Epub
 from .cbz import Cbz
+from .epub import Epub
 
 from typing import Callable
 from pathlib import Path
@@ -18,16 +18,18 @@ async def download_book(book: Book, update_func: Callable, template: str) -> Non
     """
     output_format = get_default_format(book.data)
     location = format_output_location(book, output_format, template)
-    if os.path.exists(location):
+    if not book.overwrite and os.path.exists(location):
         info("Skipping - File already exists")
         return
     parent = Path(location).parent
     if not parent.exists():
         os.makedirs(parent)
     if isinstance(book.data, SingleFile):
-        await output_format.dl_single_file(book.data, location, update_func)
+        await output_format.dl_single_file(book, location, update_func)
     elif isinstance(book.data, ImageList):
-        await output_format.dl_image_list(book.data, location, update_func)
+        await output_format.dl_image_list(book, location, update_func)
+    elif isinstance(book.data, HtmlFiles):
+        await output_format.dl_html_files(book, location, update_func)
     else:
         raise NotImplementedError
     await output_format.close()
@@ -58,6 +60,8 @@ def get_default_format(bookdata: BookData) -> OutputFormat:
         return output_format_from_str(bookdata.file.extension)
     if isinstance(bookdata, ImageList):
         return Cbz()
+    if isinstance(bookdata, HtmlFiles):
+        return Epub()
     raise GrawlixError
 
 
