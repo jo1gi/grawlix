@@ -28,6 +28,7 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str, Option
     else:
         username = options.username
         password = options.password
+        password = options.password
     return username, password, library
 
 
