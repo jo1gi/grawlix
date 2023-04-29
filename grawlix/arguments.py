@@ -2,7 +2,7 @@ from grawlix import __version__
 
 import argparse
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     # Help
     parser = argparse.ArgumentParser(
         prog = "grawlix",
@@ -38,6 +38,11 @@ def parse_arguments():
         '--password',
         help = "Password for login",
         dest = "password",
+    )
+    parser.add_argument(
+        '--library',
+        help = "Library for login",
+        dest = "library",
     )
     parser.add_argument(
         '-c',

@@ -2,8 +2,9 @@ from grawlix.book import Book, Series, Result
 
 from typing import Generic, TypeVar, Tuple, Optional
 from http.cookiejar import MozillaCookieJar
-import requests
 import re
+from typing import Generic, TypeVar, Tuple
+import httpx
 
 T = TypeVar("T")
 
@@ -15,10 +16,11 @@ class Source(Generic[T]):
     name: str = "UNKNOWN"
     match: list[str] = []
     _authentication_methods: list[str] = []
+    _login_credentials = [ "username", "password" ]
     authenticated = False
 
     def __init__(self):
-        self._session = requests.Session()
+        self._client = httpx.AsyncClient()
 
 
     @property
@@ -33,7 +35,7 @@ class Source(Generic[T]):
         return "login" in self._authentication_methods
 
 
-    def login(self, username: str, password: str, **kwargs: str):
+    async def login(self, username: str, password: str, **kwargs: str):
         """
         Login to source
 
@@ -58,11 +60,11 @@ class Source(Generic[T]):
         if self.supports_cookies:
             cookie_jar = MozillaCookieJar()
             cookie_jar.load(cookie_file, ignore_expires=True)
-            self._session.cookies.update(cookie_jar)
+            self._client.cookies.update(cookie_jar)
             self.authenticated = True
 
 
-    def download(self, url: str) -> Result[T]:
+    async def download(self, url: str) -> Result[T]:
         """
         Download book metadata from source
 
@@ -72,7 +74,7 @@ class Source(Generic[T]):
         raise NotImplementedError
 
 
-    def download_book_from_id(self, book_id: T) -> Book:
+    async def download_book_from_id(self, book_id: T) -> Book:
         """
         Download book from id
 

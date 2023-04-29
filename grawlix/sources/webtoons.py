@@ -19,19 +19,19 @@ class Webtoons(Source[str]):
     ]
     _authentication_methods: list[str] = []
 
-    def download(self, url: str) -> Result[str]:
+    async def download(self, url: str) -> Result[str]:
         if re.match(self.match[0], url):
-            return self._download_episode(url)
+            return await self._download_episode(url)
         if re.match(self.match[1], url):
-            return self._download_series(url)
+            return await self._download_series(url)
         raise InvalidUrl
 
 
-    def download_book_from_id(self, book_id: str) -> Book:
-        return self._download_episode(book_id)
+    async def download_book_from_id(self, book_id: str) -> Book:
+        return await self._download_episode(book_id)
 
 
-    def _download_series(self, url: str) -> Series[str]:
+    async def _download_series(self, url: str) -> Series[str]:
         """
         Download a series of webtoons
 
@@ -39,7 +39,7 @@ class Webtoons(Source[str]):
         :returns: Webtoons series data
         """
         parsed_url = urlparse(url)
-        page = self._session.get(
+        response = await self._client.get(
             f"https://m.webtoons.com{parsed_url.path}",
             params = parsed_url.query,
             headers = {
@@ -49,9 +49,10 @@ class Webtoons(Source[str]):
                 "needGDPR": "FALSE",
                 "needCCPA": "FALSE",
                 "needCOPPA": "FALSE"
-            }
-        ).text
-        soup = BeautifulSoup(page, "lxml")
+            },
+            follow_redirects = True,
+        )
+        soup = BeautifulSoup(response.text, "lxml")
         title = soup.find("meta", property="og:title").get("content")
         episodes = []
         for episode in soup.find_all("li", class_="_episodeItem"):
@@ -63,15 +64,15 @@ class Webtoons(Source[str]):
         )
 
 
-    def _download_episode(self, url: str) -> Book:
+    async def _download_episode(self, url: str) -> Book:
         """
         Download single webtoon episode
 
         :param url: Url of episode
         :returns: Episode
         """
-        page = self._session.get(url).text
-        soup = BeautifulSoup(page, "lxml")
+        response = await self._client.get(url, follow_redirects = True)
+        soup = BeautifulSoup(response.text, "lxml")
         title = soup.find("h1", class_="subj_episode").get("title")
         series = soup.find("div", class_="subj_info").find("a").get("title")
         images = []

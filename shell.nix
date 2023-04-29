@@ -20,6 +20,18 @@ let
 
     doCheck = false;
   };
+  ebooklib = python3Packages.buildPythonPackage rec {
+    pname = "EbookLib";
+    version = "0.18";
+    src = python3Packages.fetchPypi {
+      inherit pname version;
+      sha256 = "sha256-OFYmQ6e8lNm/VumTC0kn5Ok7XR0JF/aXpkVNtaHBpTM=";
+    };
+    propagatedBuildInputs = with python3Packages; [
+      six
+      lxml
+    ];
+  };
 in
 mkShell {
   buildInputs = [
@@ -27,10 +39,11 @@ mkShell {
       appdirs
       beautifulsoup4
       blackboxprotobuf
+      ebooklib
+      httpx
       importlib-resources
       lxml
       pycryptodome
-      requests
       rich
       tomli
 

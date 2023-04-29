@@ -9,9 +9,10 @@ from typing import Tuple, Optional
 from rich.progress import Progress
 from functools import partial
 import os
+import asyncio
 
 
-def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
+def get_login(source: Source, config: Config, options) -> Tuple[str, str, Optional[str]]:
     """
     Get login credentials for source
 
@@ -24,10 +25,12 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
     if source_name in config.sources:
         username = config.sources[source_name].username or options.username
         password = config.sources[source_name].password or options.password
+        library = config.sources[source_name].library or options.library
     else:
         username = options.username
         password = options.password
-    return username, password
+        password = options.password
+    return username, password, library
 
 
 def get_urls(options) -> list[str]:
@@ -60,7 +63,7 @@ def get_cookie_file(options) -> Optional[str]:
     return None
 
 
-def authenticate(source: Source, config: Config, options):
+async def authenticate(source: Source, config: Config, options):
     """
     Authenticate with source
 
@@ -70,8 +73,8 @@ def authenticate(source: Source, config: Config, options):
     """
     logging.info(f"Authenticating with source [magenta]{source.name}[/]")
     if source.supports_login:
-        username, password = get_login(source, config, options)
-        source.login(username, password)
+        username, password, library = get_login(source, config, options)
+        await source.login(username, password, library=library)
         source.authenticated = True
     if source.supports_cookies:
         cookie_file = get_cookie_file(options)
@@ -81,29 +84,29 @@ def authenticate(source: Source, config: Config, options):
         raise SourceNotAuthenticated
 
 
-def main() -> None:
+async def main() -> None:
     args = arguments.parse_arguments()
     config = load_config()
     urls = get_urls(args)
     for url in urls:
         source: Source = load_source(url)
         if not source.authenticated and source.requires_authentication:
-            authenticate(source, config, args)
-        result = source.download(url)
+            await authenticate(source, config, args)
+        result = await source.download(url)
         if isinstance(result, Book):
             with logging.progress(result.metadata.title, source.name) as progress:
-                template = args.output or "{title}.{ext}"
-                download_with_progress(result, progress, template)
+                template: str = args.output or "{title}.{ext}"
+                await download_with_progress(result, progress, template)
         elif isinstance(result, Series):
             with logging.progress(result.title, source.name, len(result.book_ids)) as progress:
                 for book_id in result.book_ids:
-                    book = source.download_book_from_id(book_id)
-                    template = args.output or "{series}/{title}.{ext}"
-                    download_with_progress(book, progress, template)
+                    book: Book = await source.download_book_from_id(book_id)
+                    template: str = args.output or "{series}/{title}.{ext}"
+                    await download_with_progress(book, progress, template)
         logging.info("")
 
 
-def download_with_progress(book: Book, progress: Progress, template: str):
+async def download_with_progress(book: Book, progress: Progress, template: str):
     """
     Download book with progress bar in cli
 
@@ -113,9 +116,14 @@ def download_with_progress(book: Book, progress: Progress, template: str):
     """
     task = logging.add_book(progress, book)
     update_function = partial(progress.advance, task)
-    download_book(book, update_function, template)
+    await download_book(book, update_function, template)
     progress.advance(task, 1)
 
 
+def run() -> None:
+    """Start main function"""
+    asyncio.run(main())
+
+
 if __name__ == "__main__":
-    main()
+    run()
