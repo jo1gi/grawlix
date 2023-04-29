@@ -28,7 +28,7 @@ class MangaPlus(Source):
 
 
     async def download_book_from_id(self, book_id: str) -> Book:
-        return self._download_issue(book_id)
+        return await self._download_issue(book_id)
 
 
     async def _download_series(self, series_id: str) -> Series:
