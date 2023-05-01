@@ -17,7 +17,7 @@ KEY_ENCRYPTION_IV = bytes([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
 class Ereolen(Source):
     name: str = "eReolen"
     match: list[str] = [
-        r"https://ereolen.dk/ting/object/\d+-.+/read",
+        r"https://ereolen.dk/ting/object/\d+-.+/read/?$",
         r"https://ereolen.dk/ting/object/\d+-[^/]+/?$"
     ]
     _authentication_methods = [ "login" ]
@@ -112,6 +112,8 @@ class Ereolen(Source):
         :returns: Book id
         """
         if re.match(self.match[0], url):
+            if url.endswith("/"):
+                url = url[:-1]
             return await self._get_book_id_from_reader(url)
         if re.match(self.match[1], url):
             return await self._get_book_id_from_reader(f"{url}/read")
