@@ -34,7 +34,7 @@ def load_config() -> Config:
         config_dict = {}
     sources = {}
     if "source" in config_dict:
-        for key, values in config_dict["source"].items():
+        for key, values in config_dict["sources"].items():
             sources[key] = SourceConfig (
                 username = values.get("username"),
                 password = values.get("password"),
