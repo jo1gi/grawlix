@@ -20,7 +20,7 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str, Option
     :param options: Command line options
     :returns: Login credentials
     """
-    source_name = source.name.lower()
+    source_name = source.name.lower().replace(" ", "")
     if source_name in config.sources:
         username = config.sources[source_name].username or options.username
         password = config.sources[source_name].password or options.password

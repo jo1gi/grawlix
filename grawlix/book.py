@@ -31,11 +31,20 @@ class OnlineFile:
     encryption: Optional[Encryption] = None
     headers: Optional[dict[str, str]] = None
 
+@dataclass(slots=True)
+class OfflineFile:
+    """Stores content of a file"""
+    content: bytes
+    extension: str
+    encryption: Optional[Encryption] = None
+
+File = Union[OnlineFile, OfflineFile]
+
 
 @dataclass(slots=True)
 class SingleFile:
     """Bookdata in the form of a single file"""
-    file: OnlineFile
+    file: File
 
 
 @dataclass(slots=True)
