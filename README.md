@@ -9,6 +9,7 @@ CLI ebook downloader
 grawlix currently supports downloading from the following sources:
 - [eReolen](https://ereolen.dk)
 - [Flipp](https://flipp.dk)
+- [Internet Archive](https://archive.org)
 - [Manga Plus](https://mangaplus.shueisha.co.jp)
 - [Royal Road](https://www.royalroad.com)
 - [Saxo](https://saxo.com)

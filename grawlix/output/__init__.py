@@ -3,6 +3,7 @@ from grawlix.exceptions import GrawlixError
 from grawlix.logging import info
 
 from .output_format import OutputFormat
+from .acsm import Acsm
 from .cbz import Cbz
 from .epub import Epub
 
@@ -85,6 +86,7 @@ def get_output_formats() -> list[type[OutputFormat]]:
     :returns: List of available output format classes
     """
     return [
+        Acsm,
         Cbz,
         Epub,
     ]

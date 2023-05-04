@@ -3,6 +3,7 @@ from grawlix.exceptions import NoSourceFound
 from .source import Source
 from .ereolen import Ereolen
 from .flipp import Flipp
+from .internet_archive import InternetArchive
 from .mangaplus import MangaPlus
 from .royal_road import RoyalRoad
 from .saxo import Saxo
@@ -53,6 +54,7 @@ def get_source_classes() -> list[type[Source]]:
     return [
         Ereolen,
         Flipp,
+        InternetArchive,
         MangaPlus,
         RoyalRoad,
         Saxo,

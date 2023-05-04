@@ -2,8 +2,8 @@ from grawlix.book import Result, Book, SingleFile, Metadata, OnlineFile
 from grawlix.encryption import AESCTREncryption
 from grawlix.exceptions import InvalidUrl, DataNotFound
 from grawlix.utils import nearest_string
-
 from .source import Source
+
 from bs4 import BeautifulSoup
 import json
 import re
