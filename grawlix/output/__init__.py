@@ -1,5 +1,5 @@
 from grawlix.book import Book, BookData, SingleFile, ImageList, OnlineFile, HtmlFiles
-from grawlix.exceptions import GrawlixError
+from grawlix.exceptions import GrawlixError, UnsupportedOutputFormat
 from grawlix.logging import info
 
 from .output_format import OutputFormat
@@ -17,7 +17,12 @@ async def download_book(book: Book, update_func: Callable, template: str) -> Non
 
     :param book: Book to download
     """
-    output_format = get_default_format(book.data)
+    _, ext = os.path.splitext(template)
+    ext = ext[1:]
+    if ext in get_valid_extensions():
+        output_format = find_output_format(book, ext)()
+    else:
+        output_format = get_default_format(book)
     location = format_output_location(book, output_format, template)
     if not book.overwrite and os.path.exists(location):
         info("Skipping - File already exists")
@@ -25,14 +30,7 @@ async def download_book(book: Book, update_func: Callable, template: str) -> Non
     parent = Path(location).parent
     if not parent.exists():
         os.makedirs(parent)
-    if isinstance(book.data, SingleFile):
-        await output_format.dl_single_file(book, location, update_func)
-    elif isinstance(book.data, ImageList):
-        await output_format.dl_image_list(book, location, update_func)
-    elif isinstance(book.data, HtmlFiles):
-        await output_format.dl_html_files(book, location, update_func)
-    else:
-        raise NotImplementedError
+    await output_format.download(book, location, update_func)
     await output_format.close()
 
 
@@ -49,34 +47,43 @@ def format_output_location(book: Book, output_format: OutputFormat, template: st
     return template.format(**values, ext = output_format.extension)
 
 
-def get_default_format(bookdata: BookData) -> OutputFormat:
+def get_default_format(book: Book) -> OutputFormat:
     """
     Get default output format for bookdata.
     Should only be used if no format was specified by the user
 
-    :param bookdata: Content of book
+    :param book: Content of book
     :returns: OutputFormat object matching the default
     """
+    bookdata = book.data
     if isinstance(bookdata, SingleFile):
-        return output_format_from_str(bookdata.file.extension)
+        extension = bookdata.file.extension
     if isinstance(bookdata, ImageList):
-        return Cbz()
+        extension = "cbz"
     if isinstance(bookdata, HtmlFiles):
-        return Epub()
-    raise GrawlixError
+        extension = "epub"
+    output_format = find_output_format(book, extension)
+    return output_format()
 
 
-def output_format_from_str(name: str) -> OutputFormat:
+def find_output_format(book: Book, extension: str) -> type[OutputFormat]:
     """
-    Convert string to outputformat object
+    Find a compatible output format
 
-    :param name: Name of output format
-    :returns: OutputFormat object
+    :param book: Book to download
+    :param extension: Extension of output file
+    :returns: Compatible OutputFormat type
+    :raises: UnsupportedOutputFormat if nothing is found
     """
     for output_format in get_output_formats():
-        if output_format.extension == name:
-            return output_format()
-    raise GrawlixError
+        matches_extension = output_format.extension == extension
+        supports_bookdata = type(book.data) in output_format.input_types
+        if matches_extension and supports_bookdata:
+            return output_format
+    raise UnsupportedOutputFormat
+
+def get_valid_extensions() -> list[str]:
+    return [output_format.extension for output_format in get_output_formats()]
 
 
 def get_output_formats() -> list[type[OutputFormat]]:

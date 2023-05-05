@@ -1,4 +1,4 @@
-from grawlix.book import HtmlFiles, HtmlFile, OnlineFile, Book
+from grawlix.book import HtmlFiles, HtmlFile, OnlineFile, Book, SingleFile, Metadata
 from grawlix.exceptions import UnsupportedOutputFormat
 from .output_format import OutputFormat, Update
 
@@ -9,14 +9,20 @@ from ebooklib import epub
 
 class Epub(OutputFormat):
     extension = "epub"
+    input_types = [SingleFile, HtmlFiles]
 
-    async def dl_html_files(self, book: Book, location: str, update: Update) -> None:
-        if not isinstance(book.data, HtmlFiles):
+    async def download(self, book: Book, location: str, update: Update) -> None:
+        if isinstance(book.data, SingleFile):
+            await self._download_single_file(book, location, update)
+        elif isinstance(book.data, HtmlFiles):
+            await self._download_html_files(book.data, book.metadata, location, update)
+        else:
             raise UnsupportedOutputFormat
-        html = book.data
+
+    async def _download_html_files(self, html: HtmlFiles, metadata: Metadata, location: str, update: Update) -> None:
         output = epub.EpubBook()
-        output.set_title(book.metadata.title)
-        for author in book.metadata.authors:
+        output.set_title(metadata.title)
+        for author in metadata.authors:
             output.add_author(author)
         file_count = len(html.htmlfiles) + 1 # Html files + cover
 

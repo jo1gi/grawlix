@@ -1,14 +1,15 @@
-from grawlix.book import Book
+from grawlix.book import Book, SingleFile
 from .output_format import OutputFormat, Update
 import shutil
 import subprocess
 
 class Acsm(OutputFormat):
     extension = "acsm"
+    input_types = [SingleFile]
 
-    async def dl_single_file(self, book: Book, location: str, update_func: Update) -> None:
+    async def download(self, book: Book, location: str, update_func: Update) -> None:
         # Download and write acsm file to disk
-        await super().dl_single_file(book, location, update_func)
+        await self._download_single_file(book, location, update_func)
         # TODO: Implement more general solution
         # Decrypt if knock is available
         # https://web.archive.org/web/20221016154220/https://github.com/BentonEdmondson/knock

@@ -1,4 +1,4 @@
-from grawlix.book import Book, SingleFile, OnlineFile, ImageList, HtmlFiles, Book, OfflineFile
+from grawlix.book import Book, SingleFile, OnlineFile, ImageList, HtmlFiles, Book, OfflineFile, BookData
 from grawlix.exceptions import UnsupportedOutputFormat
 from grawlix.encryption import decrypt
 
@@ -10,6 +10,7 @@ Update = Optional[Callable[[float], None]]
 class OutputFormat:
     # Extension for output files
     extension: str
+    input_types: list[type[BookData]]
 
     def __init__(self) -> None:
         self._client = httpx.AsyncClient()
@@ -20,7 +21,18 @@ class OutputFormat:
         await self._client.aclose()
 
 
-    async def dl_single_file(self, book: Book, location: str, update_func: Update) -> None:
+    async def download(self, book: Book, location: str, update_func: Update) -> None:
+        """
+        Download book
+
+        :param book: Book to download
+        :param location: Path to where the file is written
+        :param update_func: Function to update progress bar
+        """
+        raise UnsupportedOutputFormat
+
+
+    async def _download_single_file(self, book: Book, location: str, update_func: Update) -> None:
         """
         Download and write an `grawlix.SingleFile` to disk
 
@@ -36,28 +48,6 @@ class OutputFormat:
             await self._download_and_write_file(book.data.file, location, update_func)
         elif isinstance(book.data.file, OfflineFile):
             self._write_offline_file(book.data.file, location)
-
-
-    async def dl_image_list(self, book: Book, location: str, update_func: Update) -> None:
-        """
-        Download and write an `grawlix.ImageList` to disk
-
-        :param book: Book to download
-        :param location: Path to where the file is written
-        :raises UnsupportedOutputFormat: If datatype is not supported by format
-        """
-        raise UnsupportedOutputFormat
-
-
-    async def dl_html_files(self, book: Book, location: str, update_func: Update) -> None:
-        """
-        Download and write a `grawlix.HtmlFiles` to disk
-
-        :param book: Book to download
-        :param location: Path to where the file is written
-        :raises UnsupportedOutputFormat: If datatype is not supported by format
-        """
-        raise UnsupportedOutputFormat
 
 
     async def _download_file(self, file: OnlineFile, update: Update = None) -> bytes:
