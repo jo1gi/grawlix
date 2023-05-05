@@ -33,7 +33,7 @@ def load_config() -> Config:
     else:
         config_dict = {}
     sources = {}
-    if "source" in config_dict:
+    if "sources" in config_dict:
         for key, values in config_dict["sources"].items():
             sources[key] = SourceConfig (
                 username = values.get("username"),

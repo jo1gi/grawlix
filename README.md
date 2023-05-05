@@ -3,6 +3,7 @@
 ![GitHub top language](https://img.shields.io/github/languages/top/jo1gi/grawlix)
 ![License](https://img.shields.io/github/license/jo1gi/grawlix)
 [![Donate using Ko-Fi](https://img.shields.io/badge/donate-kofi-00b9fe?logo=ko-fi&logoColor=00b9fe)](https://ko-fi.com/jo1gi)
+
 CLI ebook downloader
 
 ## Supported services
