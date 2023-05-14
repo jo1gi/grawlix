@@ -25,12 +25,11 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-"Homepage" = "https://github.com/jo1gi/ebook-dl"
-"Bugtracker" = "https://github.com/jo1gi/ebook-dl/issues"
+"Homepage" = "https://github.com/jo1gi/grawlix"
+"Bugtracker" = "https://github.com/jo1gi/grawlix/issues"
 
 [project.scripts]
-audiobook-dl = "grawlix.__main__:run"
-
+grawlix = "grawlix.__main__:run"
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
@@ -41,7 +40,7 @@ build-backend = "setuptools.build_meta"
 version = {attr = "grawlix.__version__"}
 
 [tool.setuptools.package-data]
-mypkg = ["*.txt"]
+grawlix = ["*.txt"]
 
 
 [tool.mypy]
