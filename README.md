@@ -10,6 +10,7 @@ grawlix currently supports downloading from the following sources:
 - [eReolen](https://ereolen.dk)
 - [Flipp](https://flipp.dk)
 - [Manga Plus](https://mangaplus.shueisha.co.jp)
+- [Marvel Unlimited](https://marvel.com)
 - [Royal Road](https://www.royalroad.com)
 - [Saxo](https://saxo.com)
 - [Webtoons](https://webtoons.com)
