@@ -1,0 +1,9 @@
+[red]ERROR: Missing data from source[/red]
+
+grawlix is missing data from source. This can happen when you try to
+download ebooks you don't have access too (not logged in or your profile
+doesn't have the right permissions), the site has been updated and grawlix
+hasn't implemented the new version, or it could be a bug in grawlix.
+
+If you think it is a problem with grawlix please create an issue at
+https://github.com/jo1gi/grawlix/issues

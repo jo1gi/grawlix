@@ -1,0 +1,4 @@
+[red]ERROR: Your connection has been throttled[/]
+
+The site you are downloading from has temporarily blocked you.
+Please wait a bit before downloading again or try another site or account.

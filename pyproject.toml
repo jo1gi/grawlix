@@ -41,7 +41,7 @@ build-backend = "setuptools.build_meta"
 version = {attr = "grawlix.__version__"}
 
 [tool.setuptools.package-data]
-mypkg = ["*.txt"]
+grawlix = ["*.txt"]
 
 
 [tool.mypy]
