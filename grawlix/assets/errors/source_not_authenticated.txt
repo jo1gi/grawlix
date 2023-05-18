@@ -1,0 +1,8 @@
+[red]ERROR: Source has not been authenticated[/red]
+
+You need to login to use this site. You can either use
+* [green]--username[/] and [green]--password[/]
+* Write username and password in the config file
+* Use a cookie file with [green]--cookies[/]
+
+See the README for more information: {repo}
