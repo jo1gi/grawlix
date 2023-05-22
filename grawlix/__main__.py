@@ -76,7 +76,7 @@ async def authenticate(source: Source, config: Config, options):
         username, password, library = get_login(source, config, options)
         await source.login(username, password, library=library)
         source.authenticated = True
-    if source.supports_cookies:
+    elif source.supports_cookies:
         cookie_file = get_cookie_file(options)
         if cookie_file:
             source.load_cookies(cookie_file)
