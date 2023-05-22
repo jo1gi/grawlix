@@ -2,6 +2,7 @@ from grawlix.exceptions import DataNotFound
 
 from urllib.parse import urlparse, parse_qs
 from functools import lru_cache
+import importlib.resources
 
 def get_arg_from_url(url: str, key: str) -> str:
     parsed_url = urlparse(url)
@@ -38,3 +39,14 @@ def nearest_string(input: str, list: list[str]) -> str:
     Finds the nearest string in `list` to `input` based on levenstein distance
     """
     return sorted(list, key = lambda x: levenstein_distance(input, x))[0]
+
+
+def read_asset_file(path: str) -> str:
+    """
+    Read asset file from the grawlix module
+
+    :param path: Path relative to root of grawlix module
+    """
+    return importlib.resources.files("grawlix") \
+        .joinpath(path) \
+        .read_text(encoding="utf8")

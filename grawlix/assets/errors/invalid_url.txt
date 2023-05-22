@@ -1,0 +1,6 @@
+[red]ERROR: The given url does not match any sources[/red]
+
+Please make sure the link goes to the ebook you want to download and the site is
+supported by grawlix. Try the link to the reader page if available.
+
+If nothing works please create an issue at {issue}

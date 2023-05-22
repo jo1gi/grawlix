@@ -1,4 +1,4 @@
-from grawlix.exceptions import NoSourceFound
+from grawlix.exceptions import InvalidUrl
 
 from .source import Source
 from .ereolen import Ereolen
@@ -43,7 +43,7 @@ def find_source(url: str) -> type[Source]:
         for num, match in enumerate(cls.match):
             if re.match(match, url):
                 return cls
-    raise NoSourceFound
+    raise InvalidUrl
 
 
 def get_source_classes() -> list[type[Source]]:

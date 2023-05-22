@@ -1,6 +1,6 @@
 from .book import Book, Series
 from .config import load_config, Config, SourceConfig
-from .exceptions import SourceNotAuthenticated
+from .exceptions import SourceNotAuthenticated, GrawlixError
 from .sources import load_source, Source
 from .output import download_book
 from . import  arguments, logging
@@ -87,23 +87,27 @@ async def authenticate(source: Source, config: Config, options):
 async def main() -> None:
     args = arguments.parse_arguments()
     config = load_config()
+    logging.debug_mode = args.debug
     urls = get_urls(args)
     for url in urls:
-        source: Source = load_source(url)
-        if not source.authenticated and source.requires_authentication:
-            await authenticate(source, config, args)
-        result = await source.download(url)
-        if isinstance(result, Book):
-            with logging.progress(result.metadata.title, source.name) as progress:
-                template: str = args.output or "{title}.{ext}"
-                await download_with_progress(result, progress, template)
-        elif isinstance(result, Series):
-            with logging.progress(result.title, source.name, len(result.book_ids)) as progress:
-                for book_id in result.book_ids:
-                    book: Book = await source.download_book_from_id(book_id)
-                    template: str = args.output or "{series}/{title}.{ext}"
-                    await download_with_progress(book, progress, template)
-        logging.info("")
+        try:
+            source: Source = load_source(url)
+            if not source.authenticated and source.requires_authentication:
+                await authenticate(source, config, args)
+            result = await source.download(url)
+            if isinstance(result, Book):
+                with logging.progress(result.metadata.title, source.name) as progress:
+                    template: str = args.output or "{title}.{ext}"
+                    await download_with_progress(result, progress, template)
+            elif isinstance(result, Series):
+                with logging.progress(result.title, source.name, len(result.book_ids)) as progress:
+                    for book_id in result.book_ids:
+                        book: Book = await source.download_book_from_id(book_id)
+                        template: str = args.output or "{series}/{title}.{ext}"
+                        await download_with_progress(book, progress, template)
+            logging.info("")
+        except GrawlixError as error:
+            error.print_error()
 
 
 async def download_with_progress(book: Book, progress: Progress, template: str):

@@ -57,4 +57,10 @@ def parse_arguments() -> argparse.Namespace:
         help = "Output destination",
         dest = "output"
     )
+    # Logging
+    parser.add_argument(
+        '--debug',
+        help = "Enable debug messages",
+        dest = "debug"
+    )
     return parser.parse_args()
