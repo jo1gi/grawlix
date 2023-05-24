@@ -25,6 +25,10 @@ python3 setup.py install
 ```
 
 ## Authentication
+Authentication can either be done with login (username and password) or cookies.
+Not all sources support both methods.
+
+### Login
 Some sources require authentication, which can be done either with cli arguments
 or a config file.
 
@@ -39,6 +43,15 @@ grawlix --username "user@example.com" --password "SuperSecretPassword" <url>
 username = "user@example.com"
 password = "SuperSecretPassword"
 ```
+Config file should be placed in `~/.config/grawlix/grawlix.toml`
+
+### Cookies
+Some sources can be authenticated with Netscape cookie files. I use
+[this extension](https://github,com/rotemdan/ExportCookies) to export my
+cookies from my browser.
+
+Cookies can be placed in current dir as `cookies.txt` or be given with the
+`--cookie` argument.
 
 ## Download books
 To download a book run:
