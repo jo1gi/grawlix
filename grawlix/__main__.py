@@ -80,6 +80,8 @@ async def authenticate(source: Source, config: Config, options):
         cookie_file = get_cookie_file(options)
         if cookie_file:
             source.load_cookies(cookie_file)
+        else:
+            raise SourceNotAuthenticated
     else:
         raise SourceNotAuthenticated
 
@@ -108,6 +110,7 @@ async def main() -> None:
             logging.info("")
         except GrawlixError as error:
             error.print_error()
+            exit(1)
 
 
 async def download_with_progress(book: Book, progress: Progress, template: str):
