@@ -59,7 +59,7 @@ class OutputFormat:
         :returns: Content of downloaded file
         """
         content = b""
-        async with self._client.stream("GET", file.url, headers = file.headers, follow_redirects=True) as request:
+        async with self._client.stream("GET", file.url, headers = file.headers, cookies = file.cookies, follow_redirects=True) as request:
             total_filesize = int(request.headers["Content-length"])
             async for chunk in request.aiter_bytes():
                 content += chunk

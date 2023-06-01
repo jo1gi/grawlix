@@ -1,6 +1,6 @@
 from grawlix import Encryption
 from dataclasses import dataclass, field
-from typing import Optional, Union, TypeVar, Generic
+from typing import Optional, Union, TypeVar, Generic, Any
 
 @dataclass(slots=True)
 class Metadata:
@@ -30,6 +30,7 @@ class OnlineFile:
     extension: str
     encryption: Optional[Encryption] = None
     headers: Optional[dict[str, str]] = None
+    cookies: Optional[Any] = None # TODO Change type
 
 @dataclass(slots=True)
 class OfflineFile:
@@ -63,8 +64,8 @@ class HtmlFile:
 
 @dataclass(slots=True)
 class HtmlFiles:
-    cover: OnlineFile
     htmlfiles: list[HtmlFile]
+    cover: Optional[OnlineFile] = None
 
 BookData = Union[
     SingleFile,

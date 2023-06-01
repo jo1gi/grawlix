@@ -27,9 +27,9 @@ class Epub(OutputFormat):
         file_count = len(html.htmlfiles) + 1 # Html files + cover
 
         async def download_cover(cover_file: OnlineFile):
-            cover_filename = f"cover.{html.cover.extension}"
+            cover_filename = f"cover.{cover_file.extension}"
             epub_cover = epub.EpubCover(file_name = cover_filename)
-            epub_cover.content = await self._download_file(html.cover)
+            epub_cover.content = await self._download_file(cover_file)
             output.add_item(epub_cover)
             epub_cover_page = epub.EpubCoverHtml(image_name = cover_filename)
             if update:
@@ -38,7 +38,12 @@ class Epub(OutputFormat):
 
 
         async def download_file(index: int, file: HtmlFile):
-            response = await self._client.get(file.file.url, follow_redirects=True)
+            response = await self._client.get(
+                file.file.url,
+                headers = file.file.headers,
+                cookies = file.file.cookies,
+                follow_redirects=True
+            )
             soup = BeautifulSoup(response.text, "lxml")
             selected_element = soup.find(attrs=file.selector)
             epub_file = epub.EpubHtml(
@@ -55,7 +60,9 @@ class Epub(OutputFormat):
             download_file(index, file)
             for index, file in enumerate(html.htmlfiles)
         ]
-        epub_files = await asyncio.gather(download_cover(html.cover), *tasks)
+        if html.cover:
+            tasks.append(download_cover(html.cover))
+        epub_files = await asyncio.gather(*tasks)
 
         # Add files to epub
         for epub_file in epub_files:
