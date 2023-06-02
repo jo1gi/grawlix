@@ -2,6 +2,7 @@ from grawlix.exceptions import InvalidUrl
 
 from .source import Source
 from .ereolen import Ereolen
+from .fanfictionnet import FanfictionNet
 from .flipp import Flipp
 from .internet_archive import InternetArchive
 from .mangaplus import MangaPlus
@@ -54,6 +55,7 @@ def get_source_classes() -> list[type[Source]]:
     """
     return [
         Ereolen,
+        FanfictionNet,
         Flipp,
         InternetArchive,
         MangaPlus,

@@ -9,6 +9,7 @@ CLI ebook downloader
 ## Supported services
 grawlix currently supports downloading from the following sources:
 - [eReolen](https://ereolen.dk)
+- [fanfiction.net](https://www.fanfiction.net)
 - [Flipp](https://flipp.dk)
 - [Internet Archive](https://archive.org)
 - [Manga Plus](https://mangaplus.shueisha.co.jp)
