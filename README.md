@@ -19,6 +19,13 @@ grawlix currently supports downloading from the following sources:
 - [Webtoons](https://webtoons.com)
 
 ## Installation
+
+### From pypi (recommended)
+```shell
+pip install grawlix
+```
+
+### From repo (unstable)
 ```shell
 git clone https://github.com/jo1gi/grawlix.git
 cd grawlix
