@@ -1,4 +1,4 @@
-from grawlix.book import Book, BookData, SingleFile, ImageList, OnlineFile, HtmlFiles
+from grawlix.book import Book, BookData, SingleFile, ImageList, OnlineFile, HtmlFiles, EpubInParts
 from grawlix.exceptions import GrawlixError, UnsupportedOutputFormat
 from grawlix.logging import info
 
@@ -58,9 +58,9 @@ def get_default_format(book: Book) -> OutputFormat:
     bookdata = book.data
     if isinstance(bookdata, SingleFile):
         extension = bookdata.file.extension
-    if isinstance(bookdata, ImageList):
+    elif isinstance(bookdata, ImageList):
         extension = "cbz"
-    if isinstance(bookdata, HtmlFiles):
+    elif isinstance(bookdata, HtmlFiles) or isinstance(bookdata, EpubInParts):
         extension = "epub"
     output_format = find_output_format(book, extension)
     return output_format()
