@@ -14,6 +14,7 @@ grawlix currently supports downloading from the following sources:
 - [Internet Archive](https://archive.org)
 - [Manga Plus](https://mangaplus.shueisha.co.jp)
 - [Marvel Unlimited](https://marvel.com)
+- [Nextory](https://nextory.com)
 - [Royal Road](https://www.royalroad.com)
 - [Saxo](https://saxo.com)
 - [Webtoons](https://webtoons.com)

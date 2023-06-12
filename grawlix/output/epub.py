@@ -1,4 +1,4 @@
-from grawlix.book import HtmlFiles, HtmlFile, OnlineFile, Book, SingleFile, Metadata
+from grawlix.book import HtmlFiles, HtmlFile, OnlineFile, Book, SingleFile, Metadata, EpubInParts
 from grawlix.exceptions import UnsupportedOutputFormat
 from .output_format import OutputFormat, Update
 
@@ -6,18 +6,24 @@ import asyncio
 from bs4 import BeautifulSoup
 import os
 from ebooklib import epub
+from zipfile import ZipFile
+import rich
 
 class Epub(OutputFormat):
     extension = "epub"
-    input_types = [SingleFile, HtmlFiles]
+    input_types = [SingleFile, HtmlFiles, EpubInParts]
+
 
     async def download(self, book: Book, location: str, update: Update) -> None:
         if isinstance(book.data, SingleFile):
             await self._download_single_file(book, location, update)
         elif isinstance(book.data, HtmlFiles):
             await self._download_html_files(book.data, book.metadata, location, update)
+        elif isinstance(book.data, EpubInParts):
+            await self._download_epub_in_parts(book.data, book.metadata, location, update)
         else:
             raise UnsupportedOutputFormat
+
 
     async def _download_html_files(self, html: HtmlFiles, metadata: Metadata, location: str, update: Update) -> None:
         output = epub.EpubBook()
@@ -74,3 +80,59 @@ class Epub(OutputFormat):
         output.add_item(epub.EpubNcx())
         output.add_item(epub.EpubNav())
         epub.write_epub(location, output)
+
+
+    async def _download_epub_in_parts(self, data: EpubInParts, metadata: Metadata, location: str, update: Update) -> None:
+        files = data.files
+        file_count = len(files)
+        progress = 1/(file_count)
+        temporary_file_location = f"{location}.tmp"
+
+        added_files: set[str] = set()
+        def get_new_files(zipfile: ZipFile):
+            """Returns files in zipfile not already added to file"""
+            for filename in zipfile.namelist():
+                if filename in added_files or filename.endswith(".opf") or filename.endswith(".ncx"):
+                    continue
+                yield filename
+
+        output = epub.EpubBook()
+        for file in files:
+            await self._download_and_write_file(file, temporary_file_location)
+            with ZipFile(temporary_file_location, "r") as zipfile:
+                for filepath in get_new_files(zipfile):
+                    content = zipfile.read(filepath)
+                    if filepath.endswith("html"):
+                        filename = os.path.basename(filepath)
+                        is_in_toc = False
+                        title = None
+                        for key, value in data.files_in_toc.items():
+                            toc_filename = key.split("#")[0]
+                            if filename == toc_filename:
+                                title = value
+                                is_in_toc = True
+                                break
+                        epub_file = epub.EpubHtml(
+                            title = title,
+                            file_name = filepath,
+                            content = content
+                        )
+                        output.add_item(epub_file)
+                        output.spine.append(epub_file)
+                        if is_in_toc:
+                            output.toc.append(epub_file)
+                    else:
+                        epub_file = epub.EpubItem(
+                            file_name = filepath,
+                            content = content
+                        )
+                        output.add_item(epub_file)
+                    added_files.add(filepath)
+            if update:
+                update(progress)
+        os.remove(temporary_file_location)
+
+        output.add_item(epub.EpubNcx())
+        output.add_item(epub.EpubNav())
+        epub.write_epub(location, output)
+        exit()

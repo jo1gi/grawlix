@@ -7,6 +7,7 @@ from .flipp import Flipp
 from .internet_archive import InternetArchive
 from .mangaplus import MangaPlus
 from .marvel import Marvel
+from .nextory import Nextory
 from .royal_road import RoyalRoad
 from .saxo import Saxo
 from .webtoons import Webtoons
@@ -60,6 +61,7 @@ def get_source_classes() -> list[type[Source]]:
         InternetArchive,
         MangaPlus,
         Marvel,
+        Nextory,
         RoyalRoad,
         Saxo,
         Webtoons
