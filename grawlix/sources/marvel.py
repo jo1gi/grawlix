@@ -1,9 +1,11 @@
 from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result
 from grawlix.exceptions import InvalidUrl, DataNotFound
+from grawlix import logging
 
 from .source import Source
 
 import re
+from datetime import date
 
 # Personal marvel ip key
 API_KEY = "83ac0da31d3f6801f2c73c7e07ad76e8"
@@ -111,9 +113,11 @@ class Marvel(Source[str]):
         issue_meta = response.json()["data"]["results"][0]["issue_meta"]
         return Metadata(
             title = issue_meta["title"],
-            series = issue_meta["series_title"],
+            series = issue_meta.get("series_title"),
+            description = issue_meta.get("description"),
             publisher = "Marvel",
-            authors = [c["full_name"] for c in issue_meta["creators"]["extended_list"]]
+            release_date = date.fromisoformat(issue_meta.get("release_date_digital")),
+            authors = [c["full_name"] for c in issue_meta["creators"]["extended_list"]] if "extended_list" in issue_meta["creators"] else []
         )
 
 

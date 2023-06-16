@@ -1,6 +1,7 @@
 from grawlix import Encryption
 from dataclasses import dataclass, field
 from typing import Optional, Union, TypeVar, Generic, Any
+from datetime import date
 
 @dataclass(slots=True)
 class Metadata:
@@ -11,6 +12,8 @@ class Metadata:
     language: Optional[str] = None
     publisher: Optional[str] = None
     identifier: Optional[str] = None
+    description: Optional[str] = None
+    release_date: Optional[date] = None
 
     def as_dict(self) -> dict:
         return {
@@ -20,6 +23,8 @@ class Metadata:
             "identifier": self.identifier or "UNKNOWN",
             "language": self.language or "UNKNOWN",
             "authors": "; ".join(self.authors),
+            "description": self.description or "UNKNOWN",
+            "relase_date": self.release_date.isoformat() if self.release_date else "UNKNOWN",
         }
 
 

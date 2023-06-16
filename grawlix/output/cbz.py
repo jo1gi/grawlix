@@ -1,6 +1,7 @@
 from .output_format import OutputFormat, Update, Book
 from grawlix.book import ImageList, OnlineFile
 from grawlix.exceptions import UnsupportedOutputFormat
+from .metadata.comicinfo import to_comic_info
 
 from zipfile import ZipFile
 import asyncio
@@ -29,3 +30,4 @@ class Cbz(OutputFormat):
                 for index, file in enumerate(images)
             ]
             await asyncio.wait(tasks)
+            zip.writestr("ComicInfo.xml", to_comic_info(book.metadata))
