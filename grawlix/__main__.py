@@ -9,6 +9,7 @@ from typing import Tuple, Optional
 from rich.progress import Progress
 from functools import partial
 import asyncio
+import traceback
 
 
 def get_login(source: Source, config: Config, options) -> Tuple[str, str, Optional[str]]:
@@ -89,6 +90,9 @@ async def main() -> None:
             logging.info("")
         except GrawlixError as error:
             error.print_error()
+            if logging.debug_mode:
+                traceback.print_exc()
+            exit(1)
 
 
 async def download_with_progress(book: Book, progress: Progress, template: str):
