@@ -8,6 +8,7 @@ from . import  arguments, logging
 from typing import Tuple, Optional
 from rich.progress import Progress
 from functools import partial
+import os
 import asyncio
 import traceback
 
@@ -49,6 +50,20 @@ def get_urls(options) -> list[str]:
     return urls
 
 
+def get_cookie_file(options) -> Optional[str]:
+    """
+    Get path to cookie file
+
+    :param options: Cli arguments
+    :returns: Path to cookie file
+    """
+    if options.cookie_file is not None and os.path.exists(options.cookie_file):
+        return options.cookie_file
+    if os.path.exists("./cookies.txt"):
+        return "./cookies.txt"
+    return None
+
+
 async def authenticate(source: Source, config: Config, options):
     """
     Authenticate with source
@@ -62,6 +77,12 @@ async def authenticate(source: Source, config: Config, options):
         username, password, library = get_login(source, config, options)
         await source.login(username, password, library=library)
         source.authenticated = True
+    elif source.supports_cookies:
+        cookie_file = get_cookie_file(options)
+        if cookie_file:
+            source.load_cookies(cookie_file)
+        else:
+            raise SourceNotAuthenticated
     else:
         raise SourceNotAuthenticated
 

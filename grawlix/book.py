@@ -1,6 +1,7 @@
 from grawlix import Encryption
 from dataclasses import dataclass, field
-from typing import Optional, Union, TypeVar, Generic
+from typing import Optional, Union, TypeVar, Generic, Any
+from datetime import date
 
 @dataclass(slots=True)
 class Metadata:
@@ -11,6 +12,8 @@ class Metadata:
     language: Optional[str] = None
     publisher: Optional[str] = None
     identifier: Optional[str] = None
+    description: Optional[str] = None
+    release_date: Optional[date] = None
 
     def as_dict(self) -> dict:
         return {
@@ -20,6 +23,8 @@ class Metadata:
             "identifier": self.identifier or "UNKNOWN",
             "language": self.language or "UNKNOWN",
             "authors": "; ".join(self.authors),
+            "description": self.description or "UNKNOWN",
+            "relase_date": self.release_date.isoformat() if self.release_date else "UNKNOWN",
         }
 
 
@@ -30,6 +35,7 @@ class OnlineFile:
     extension: str
     encryption: Optional[Encryption] = None
     headers: Optional[dict[str, str]] = None
+    cookies: Optional[Any] = None # TODO Change type
 
 @dataclass(slots=True)
 class OfflineFile:
@@ -55,6 +61,16 @@ class ImageList:
     """
     images: list[OnlineFile]
 
+
+@dataclass(slots=True)
+class EpubInParts:
+    """
+    Epub split up into smaller epubs
+    """
+    files: list[OnlineFile]
+    files_in_toc: dict[str, str]
+
+
 @dataclass(slots=True)
 class HtmlFile:
     title: str
@@ -63,10 +79,11 @@ class HtmlFile:
 
 @dataclass(slots=True)
 class HtmlFiles:
-    cover: OnlineFile
     htmlfiles: list[HtmlFile]
+    cover: Optional[OnlineFile] = None
 
 BookData = Union[
+    EpubInParts,
     SingleFile,
     ImageList,
     HtmlFiles

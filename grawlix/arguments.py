@@ -44,6 +44,12 @@ def parse_arguments() -> argparse.Namespace:
         help = "Library for login",
         dest = "library",
     )
+    parser.add_argument(
+        '-c',
+        '--cookies',
+        help = "Path to netscape cookie file",
+        dest = "cookie_file"
+    )
     # Outputs
     parser.add_argument(
         '-o',
@@ -55,6 +61,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         '--debug',
         help = "Enable debug messages",
-        dest = "debug"
+        dest = "debug",
+        action="store_true",
     )
     return parser.parse_args()

@@ -1,5 +1,8 @@
 from grawlix.book import Book, Series, Result
 
+from typing import Generic, TypeVar, Tuple, Optional
+from http.cookiejar import MozillaCookieJar
+import re
 from typing import Generic, TypeVar, Tuple
 import httpx
 
@@ -42,6 +45,25 @@ class Source(Generic[T]):
         raise NotImplementedError
 
 
+    @property
+    def supports_cookies(self) -> bool:
+        """Does the source support authentication with cookie file"""
+        return "cookies" in self._authentication_methods
+
+
+    def load_cookies(self, cookie_file: str):
+        """
+        Authenticate with source with netscape cookie file
+
+        :param cookie_file: Path to netscape cookie file
+        """
+        if self.supports_cookies:
+            cookie_jar = MozillaCookieJar()
+            cookie_jar.load(cookie_file, ignore_expires=True)
+            self._client.cookies.update(cookie_jar)
+            self.authenticated = True
+
+
     async def download(self, url: str) -> Result[T]:
         """
         Download book metadata from source
@@ -60,3 +82,16 @@ class Source(Generic[T]):
         :returns: Downloaded book metadata
         """
         raise NotImplementedError
+
+
+    def get_match_index(self, url: str) -> Optional[int]:
+        """
+        Find the first regex in `self.match` that matches url
+
+        :param url: Url to match
+        :returns: Index of regex
+        """
+        for index, match in enumerate(self.match):
+            if re.match(match, url):
+                return index
+        return None

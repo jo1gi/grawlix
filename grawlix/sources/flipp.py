@@ -1,6 +1,7 @@
 from .source import Source
 from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result
 from grawlix.exceptions import InvalidUrl, DataNotFound
+from grawlix.logging import debug
 from grawlix.utils import get_arg_from_url
 
 import re
@@ -9,31 +10,41 @@ from typing import Tuple, Optional
 
 BASEURL = "https://reader.flipp.dk/html5/reader"
 
+LANGUAGE_CODE_MAPPING = {
+    "dk": "da-DK",
+    "no": "nb-NO",
+    "se": "sv-SE"
+}
+
 class Flipp(Source):
     name: str = "Flipp"
     match = [
-        r"https?://reader.flipp.dk/html5/reader/production/default.aspx\?pubname=&edid=([^/]+)",
-        r"https?://magasiner.flipp.dk/flipp/web-app/#/publications/.+"
+        r"https?://reader.flipp.(dk|no|se)/html5/reader/production/default.aspx\?pubname=&edid=([^/]+)",
+        r"https?://(magasiner|blader).flipp.(dk|no|se)/flipp/web-app/#/publications/.+"
     ]
     _authentication_methods: list[str] = []
-    _login_cache: Optional[dict] = None
+    _login_cache: dict = {}
+
+
 
     async def download(self, url: str) -> Result:
+        domain_extension = self.get_domain_extension(url)
         if re.match(self.match[0], url):
-            eid = self._get_eid(url)
-            publication_id = await self._get_series_id(eid)
-            return await self._download_book(eid, publication_id)
+            issue_id = self._extract_issue_id(url)
+            series_id = await self._get_series_id(issue_id)
+            debug(f"{series_id=}")
+            return await self._download_book(issue_id, series_id, domain_extension)
         elif re.match(self.match[1], url):
-            return await self._download_series(url)
+            return await self._download_series(url, domain_extension)
         raise InvalidUrl
 
 
-    async def download_book_from_id(self, book_id: Tuple[str, str]) -> Book:
-        series_id, issue_id = book_id
-        return await self._download_book(issue_id, series_id)
+    async def download_book_from_id(self, book_id: Tuple[str, str, str]) -> Book:
+        series_id, issue_id, language_code = book_id
+        return await self._download_book(issue_id, series_id, language_code)
 
 
-    async def _download_series(self, url: str) -> Series:
+    async def _download_series(self, url: str, language_code) -> Series:
         """
         Download series with book ids from Flipp
 
@@ -41,27 +52,27 @@ class Flipp(Source):
         :returns: Series object
         """
         series_id = url.split("/")[-1]
-        login_info = await self._download_login_info()
+        login_info = await self._download_login_info(language_code)
         series_metadata = self._extract_series_data(login_info, series_id)
         issues = []
         for issue in series_metadata["issues"]:
             issue_id = issue["customIssueCode"]
-            issues.append((series_id, issue_id))
+            issues.append((series_id, issue_id, language_code))
         return Series(
             title = series_metadata["name"],
             book_ids = issues
         )
 
 
-    async def _download_login_info(self) -> dict:
+    async def _download_login_info(self, language_code: str) -> dict:
         """
         Download login info from Flipp
         Will use cache if available
 
         :returns: Login info
         """
-        if self._login_cache:
-            return self._login_cache
+        if language_code in self._login_cache:
+            return self._login_cache[language_code]
         login_cache = await self._client.post(
             "https://flippapi.egmontservice.com/api/signin",
             headers = {
@@ -71,14 +82,14 @@ class Flipp(Source):
                 "email": "",
                 "password": "",
                 "token": "",
-                "languageCulture": "da-DK",
+                "languageCulture": LANGUAGE_CODE_MAPPING[language_code],
                 "appId": "",
                 "appVersion": "",
                 "uuid": "",
                 "os": ""
             }
         )
-        self._login_cache = login_cache.json()
+        self._login_cache[language_code] = login_cache.json()
         return login_cache.json()
 
 
@@ -96,7 +107,7 @@ class Flipp(Source):
         raise DataNotFound
 
 
-    async def _download_book(self, issue_id: str, series_id: str) -> Book:
+    async def _download_book(self, issue_id: str, series_id: str, language_code: str) -> Book:
         """
         Download book from Flipp
 
@@ -105,7 +116,7 @@ class Flipp(Source):
         :returns: Book metadata
         """
         pages = await self._get_pages(issue_id, series_id)
-        metadata = await self._get_metadata(issue_id, series_id)
+        metadata = await self._get_metadata(issue_id, series_id, language_code)
         return Book(
             data = ImageList(pages),
             metadata = Metadata(
@@ -116,7 +127,7 @@ class Flipp(Source):
         )
 
 
-    async def _get_metadata(self, issue_id: str, series_id: str) -> dict:
+    async def _get_metadata(self, issue_id: str, series_id: str, language_code: str) -> dict:
         """
         Download and extract issue data
 
@@ -124,7 +135,7 @@ class Flipp(Source):
         :param series_id: Series id
         :returns: Issue metadata
         """
-        login_info = await self._download_login_info()
+        login_info = await self._download_login_info(language_code)
         series_metadata = self._extract_series_data(login_info, series_id)
         for issue in series_metadata["issues"]:
             if issue["customIssueCode"] == issue_id:
@@ -132,7 +143,28 @@ class Flipp(Source):
                 return issue
         raise DataNotFound
 
-    def _get_eid(self, url: str) -> str:
+
+    @staticmethod
+    def get_domain_extension(url: str) -> str:
+        """
+        Extract domain extension from url
+
+        :param url: Url to parse
+        :returns: Domain extension of url
+        """
+        parsed_url = urlparse(url)
+        extension = parsed_url.netloc.split(".")[-1]
+        return extension
+
+
+    @staticmethod
+    def _extract_issue_id(url: str) -> str:
+        """
+        Extract eid from url
+
+        :param url: Url to extract data from
+        :returns: Eid in url
+        """
         return get_arg_from_url(url, "edid")
 
 
