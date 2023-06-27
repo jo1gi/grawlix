@@ -19,14 +19,20 @@ class Config:
     sources: dict[str, SourceConfig]
 
 
+def get_config_path() -> str:
+    """Return the path of the config file"""
+    config_dir = appdirs.user_config_dir("grawlix", "jo1gi")
+    config_file = os.path.join(config_dir, "grawlix.toml")
+    return config_file
+
+
 def load_config() -> Config:
     """
     Load config from disk
 
     :returns: Config object
     """
-    config_dir = appdirs.user_config_dir("grawlix", "jo1gi")
-    config_file = os.path.join(config_dir, "grawlix.toml")
+    config_file = get_config_path()
     if os.path.exists(config_file):
         with open(config_file, "rb") as f:
             config_dict = tomli.load(f)

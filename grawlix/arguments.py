@@ -14,6 +14,12 @@ def parse_arguments() -> argparse.Namespace:
         action = "version",
         version = f"grawlix {__version__}"
     )
+    parser.add_argument(
+        '--print-config-path',
+        action = "store_true",
+        help = "Print config path",
+        dest = "print_config_path"
+    )
     # Basics
     parser.add_argument(
         'urls',

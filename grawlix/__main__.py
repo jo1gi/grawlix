@@ -1,5 +1,5 @@
 from .book import Book, Series
-from .config import load_config, Config, SourceConfig
+from .config import load_config, Config, SourceConfig, get_config_path
 from .exceptions import SourceNotAuthenticated, GrawlixError
 from .sources import load_source, Source
 from .output import download_book
@@ -87,8 +87,18 @@ async def authenticate(source: Source, config: Config, options):
         raise SourceNotAuthenticated
 
 
+def run_debug_commands(options) -> None:
+    """
+    Run optional debug commands if argument is set
+    """
+    if options.print_config_path:
+        config_path = get_config_path()
+        print(config_path)
+
+
 async def main() -> None:
     args = arguments.parse_arguments()
+    run_debug_commands(args)
     config = load_config()
     logging.debug_mode = args.debug
     urls = get_urls(args)
