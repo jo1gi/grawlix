@@ -39,6 +39,9 @@ def get_urls(options) -> list[str]:
     Retrieves all available urls from input arguments
     - From urls argument
     - From file argument
+
+    :param options: Cli options
+    :returns: All urls listed in arguments
     """
     urls = []
     if options.urls:
@@ -77,13 +80,12 @@ async def authenticate(source: Source, config: Config, options):
         username, password, library = get_login(source, config, options)
         await source.login(username, password, library=library)
         source.authenticated = True
-    elif source.supports_cookies:
+    if not source.authenticated and source.supports_cookies:
         cookie_file = get_cookie_file(options)
         if cookie_file:
             source.load_cookies(cookie_file)
-        else:
-            raise SourceNotAuthenticated
-    else:
+            source.authenticated = True
+    if not source.authenticated:
         raise SourceNotAuthenticated
 
 
@@ -103,10 +105,10 @@ async def main() -> None:
                     template: str = args.output or "{title}.{ext}"
                     await download_with_progress(result, progress, template)
             elif isinstance(result, Series):
+                template = args.output or "{series}/{title}.{ext}"
                 with logging.progress(result.title, source.name, len(result.book_ids)) as progress:
                     for book_id in result.book_ids:
                         book: Book = await source.download_book_from_id(book_id)
-                        template: str = args.output or "{series}/{title}.{ext}"
                         await download_with_progress(book, progress, template)
             logging.info("")
         except GrawlixError as error:
