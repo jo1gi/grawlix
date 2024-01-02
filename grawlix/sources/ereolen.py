@@ -40,7 +40,7 @@ class Ereolen(Source):
             data = {
                 library_attr_name: library,
                 "agency": libraries[library],
-                "userId": username,
+                "loginBibDkUserId": username,
                 "pincode": password
             },
             follow_redirects = True
