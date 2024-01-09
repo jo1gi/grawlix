@@ -5,6 +5,7 @@ from .metadata.comicinfo import to_comic_info
 
 from zipfile import ZipFile
 import asyncio
+import math
 
 class Cbz(OutputFormat):
     """Comic book zip file"""
@@ -22,7 +23,8 @@ class Cbz(OutputFormat):
             async def download_page(index: int, file: OnlineFile):
                 async with semaphore:
                     content = await self._download_file(file)
-                    zip.writestr(f"Image {index}.{file.extension}", content)
+                    padded_index = str(index).zfill(math.ceil(math.log10(image_count)))
+                    zip.writestr(f"Image {padded_index}.{file.extension}", content)
                     if update:
                         update(1/image_count)
             tasks = [
