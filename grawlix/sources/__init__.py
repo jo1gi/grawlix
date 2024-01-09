@@ -1,6 +1,7 @@
 from grawlix.exceptions import InvalidUrl
 
 from .source import Source
+from .dcuniverseinfinite import DcUniverseInfinite
 from .ereolen import Ereolen
 from .fanfictionnet import FanfictionNet
 from .flipp import Flipp
@@ -55,6 +56,7 @@ def get_source_classes() -> list[type[Source]]:
     :returns: A list of all available source types
     """
     return [
+        DcUniverseInfinite,
         Ereolen,
         FanfictionNet,
         Flipp,

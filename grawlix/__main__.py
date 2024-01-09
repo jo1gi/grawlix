@@ -1,6 +1,6 @@
 from .book import Book, Series
 from .config import load_config, Config, SourceConfig
-from .exceptions import SourceNotAuthenticated, GrawlixError
+from .exceptions import SourceNotAuthenticated, GrawlixError, AccessDenied
 from .sources import load_source, Source
 from .output import download_book
 from . import  arguments, logging
@@ -105,17 +105,30 @@ async def main() -> None:
                     template: str = args.output or "{title}.{ext}"
                     await download_with_progress(result, progress, template)
             elif isinstance(result, Series):
-                template = args.output or "{series}/{title}.{ext}"
-                with logging.progress(result.title, source.name, len(result.book_ids)) as progress:
-                    for book_id in result.book_ids:
-                        book: Book = await source.download_book_from_id(book_id)
-                        await download_with_progress(book, progress, template)
+                await download_series(source, result, args)
             logging.info("")
         except GrawlixError as error:
             error.print_error()
             if logging.debug_mode:
                 traceback.print_exc()
             exit(1)
+
+
+async def download_series(source: Source, series: Series, args) -> None:
+    """
+    Download books in series
+
+    :param series: Series to download
+    """
+    template = args.output or "{series}/{title}.{ext}"
+    with logging.progress(series.title, source.name, len(series.book_ids)) as progress:
+        for book_id in series.book_ids:
+            try:
+                book: Book = await source.download_book_from_id(book_id)
+                await download_with_progress(book, progress, template)
+            except AccessDenied as error:
+                logging.info("Skipping - Access Denied")
+
 
 
 async def download_with_progress(book: Book, progress: Progress, template: str):

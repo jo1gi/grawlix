@@ -8,6 +8,7 @@ CLI ebook downloader
 
 ## Supported services
 grawlix currently supports downloading from the following sources:
+- [DC Universe Infinite](https://www.dcuniverseinfinite.com)
 - [eReolen](https://ereolen.dk)
 - [fanfiction.net](https://www.fanfiction.net)
 - [Flipp](https://flipp.dk)

@@ -28,3 +28,6 @@ class SourceNotAuthenticated(GrawlixError):
 
 class ThrottleError(GrawlixError):
     error_file = "throttle"
+
+class AccessDenied(GrawlixError):
+    error_file = "access_denied"

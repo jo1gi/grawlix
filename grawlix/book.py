@@ -8,6 +8,7 @@ class Metadata:
     """Metadata about a book"""
     title: str
     series: Optional[str] = None
+    index: Optional[int] = None
     authors: list[str] = field(default_factory=list)
     language: Optional[str] = None
     publisher: Optional[str] = None
@@ -19,6 +20,7 @@ class Metadata:
         return {
             "title": self.title,
             "series": self.series or "UNKNOWN",
+            "index": self.index or "UNKNOWN",
             "publisher": self.publisher or "UNKNOWN",
             "identifier": self.identifier or "UNKNOWN",
             "language": self.language or "UNKNOWN",
