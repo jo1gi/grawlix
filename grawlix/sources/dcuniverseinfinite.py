@@ -89,7 +89,7 @@ class DcUniverseInfinite(Source):
             images.append(OnlineFile(
                 url = page["signed_url"],
                 extension = "jpg",
-                encryption = DcUniverseInfinteEncryption(uuid, page_number, job_id, format_id)
+                encryption = DcUniverseInfiniteEncryption(uuid, page_number, job_id, format_id)
             ))
         return ImageList(images)
 
@@ -142,14 +142,14 @@ class DcUniverseInfinite(Source):
 
 
     async def download_plan(self) -> str:
-        """Download user subscribtion plan"""
+        """Download user subscription plan"""
         response = await self._client.get(
             "https://www.dcuniverseinfinite.com/api/claims/?trans=en"
         )
         return response.json()["data"]["urn:df:clm:premium"]["plan"]
 
 
-class DcUniverseInfinteEncryption:
+class DcUniverseInfiniteEncryption:
     key: bytes
 
     def __init__(self, uuid: str, page_number: int, job_id: str, format_id: str):

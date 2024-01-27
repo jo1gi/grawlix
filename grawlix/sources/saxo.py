@@ -102,7 +102,7 @@ class Saxo(Source):
     @staticmethod
     def _extract_metadata(metadata: dict) -> Metadata:
         """
-        Extract metadata from matadata response from Saxo
+        Extract metadata from metadata response from Saxo
 
         :param metadata: Metadata response from saxo
         :returns: Metadata formatted as `grawlix.Metadata`
