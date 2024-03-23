@@ -11,6 +11,7 @@ from .marvel import Marvel
 from .nextory import Nextory
 from .royal_road import RoyalRoad
 from .saxo import Saxo
+from .storytel import Storytel
 from .webtoons import Webtoons
 
 import re
@@ -66,5 +67,6 @@ def get_source_classes() -> list[type[Source]]:
         Nextory,
         RoyalRoad,
         Saxo,
+        Storytel,
         Webtoons
     ]

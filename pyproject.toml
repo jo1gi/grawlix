@@ -21,6 +21,9 @@ dependencies = [
     "pycryptodome",
     "rich",
     "tomli",
+    "requests",
+    "urllib3",
+    "pycountry"
 ]
 dynamic = ["version"]
 
