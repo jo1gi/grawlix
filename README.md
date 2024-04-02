@@ -18,6 +18,7 @@ grawlix currently supports downloading from the following sources:
 - [Nextory](https://nextory.com)
 - [Royal Road](https://www.royalroad.com)
 - [Saxo](https://saxo.com)
+- [Storytel / Mofibo](http://storytel.com)
 - [Webtoons](https://webtoons.com)
 
 ## Installation

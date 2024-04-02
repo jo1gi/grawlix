@@ -6,11 +6,18 @@ from .output import download_book
 from . import  arguments, logging
 
 from typing import Tuple, Optional
+from rich.prompt import Prompt
 from rich.progress import Progress
 from functools import partial
 import os
 import asyncio
 import traceback
+
+
+def get_or_ask(attr: str, hidden: bool, source_config: Optional[SourceConfig], options) -> str:
+    return getattr(options, attr, None) \
+    or getattr(source_config, attr, None) \
+    or Prompt.ask(attr.capitalize(), password=hidden)
 
 
 def get_login(source: Source, config: Config, options) -> Tuple[str, str, Optional[str]]:
@@ -23,14 +30,20 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str, Option
     :returns: Login credentials
     """
     source_name = source.name.lower().replace(" ", "")
-    if source_name in config.sources:
-        username = config.sources[source_name].username or options.username
-        password = config.sources[source_name].password or options.password
-        library = config.sources[source_name].library or options.library
-    else:
-        username = options.username
-        password = options.password
-        library = options.library
+    source_config = config.sources.get(source_name)
+
+    username = get_or_ask("username", False, source_config, options)
+    password = get_or_ask("password", True, source_config, options)
+    library = None # TODO
+    # if source_name in config.sources:
+    #     username = config.sources[source_name].username or options.username
+    #     password = config.sources[source_name].password or options.password
+    #     library = config.sources[source_name].library or options.library
+    # else:
+    #     username = options.username
+    #     password = options.password
+    #     library = options.library
+
     return username, password, library
 
 
