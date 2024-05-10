@@ -1,10 +1,13 @@
 from grawlix.book import Book, SingleFile, Metadata, OfflineFile
+from grawlix.exceptions import DataNotFound
+from grawlix import logging
 from .source import Source
 
 import random
 import string
 from bs4 import BeautifulSoup
 import asyncio
+import json
 
 class InternetArchive(Source):
     name: str = "Internet Archive"
@@ -104,8 +107,10 @@ class InternetArchive(Source):
             f"https://archive.org/details/{book_id}"
         )
         soup = BeautifulSoup(page_response.text, "lxml")
-        metadata_url = soup.find("ia-book-theater").get("bookmanifesturl")
+        reader_data = json.loads(soup.find(class_="js-bookreader").get("value"))
+        metadata_url = f"https:{reader_data['url']}"
+        logging.debug(f"{metadata_url=}")
         metadata_response = await self._client.get(
-            f"https:{metadata_url}"
+            metadata_url
         )
         return metadata_response.json()["data"]["metadata"]
