@@ -34,7 +34,8 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str, Option
 
     username = get_or_ask("username", False, source_config, options)
     password = get_or_ask("password", True, source_config, options)
-    library = None # TODO
+    if "library" in source._login_credentials:
+        library = get_or_ask("library", False, source_config, options)
     # if source_name in config.sources:
     #     username = config.sources[source_name].username or options.username
     #     password = config.sources[source_name].password or options.password
