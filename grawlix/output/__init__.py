@@ -7,9 +7,10 @@ from .acsm import Acsm
 from .cbz import Cbz
 from .epub import Epub
 
-from typing import Callable
+from typing import Callable, Iterable
 from pathlib import Path
 import os
+import platform
 
 async def download_book(book: Book, update_func: Callable, template: str) -> None:
     """
@@ -43,8 +44,35 @@ def format_output_location(book: Book, output_format: OutputFormat, template: st
     :param template: Template for output path
     :returns: Output path
     """
-    values = book.metadata.as_dict()
-    return template.format(**values, ext = output_format.extension)
+    values = { key: remove_unwanted_chars(value) for key, value in book.metadata.as_dict().items() }
+    path = template.format(**values, ext = output_format.extension)
+    return path
+
+
+def remove_strings(input: str, strings: Iterable[str]) -> str:
+    """
+    Remove strings from input
+
+    :param input: the string to remove strings from
+    :param strings: the list of strings to remove from input
+    :returns: input without strinfs
+    """
+    for c in strings:
+        input = input.replace(c, "")
+    return input
+
+
+def remove_unwanted_chars(input: str) -> str:
+    """
+    Remove chars from string that are not supported in output path
+
+    :param input: The string to remove chars from
+    :returns: input without unsupported chars
+    """
+    if platform.system() == "Windows":
+        return remove_strings(input, "<>:\"/\\|?*")
+    else:
+        return remove_strings(input, "/")
 
 
 def get_default_format(book: Book) -> OutputFormat:
