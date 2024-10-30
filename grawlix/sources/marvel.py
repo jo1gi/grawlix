@@ -57,7 +57,7 @@ class Marvel(Source[str]):
         :returns: List of comic ids for marvel comics
         """
         response = await self._client.get(
-            f"https://api.marvel.com/browse/comics?byType=comic_series&isDigital=1&limit=10000&byId={series_id}",
+            f"https://bifrost.marvel.com/v1/catalog/comics/mu?byId={series_id}&byZone=marvel_site_zone&byType=comic_series&orderBy=release_date+desc&formatType=issue,digitalcomic,collection,digitalverticalcomic&limit=10000&offset=0&variants=false"
         )
         issue_ids = [issue["digital_id"] for issue in response.json()["data"]["results"]]
         return issue_ids
@@ -86,7 +86,7 @@ class Marvel(Source[str]):
         :return: Issue id
         """
         response = await self._client.get(url)
-        search = re.search(r"digital_comic_id: \"(\d+)\"", response.text)
+        search = re.search(r"\"digitalComicID\":(\d+)", response.text)
         if not search:
             raise DataNotFound
         return search.group(1)
