@@ -30,15 +30,11 @@ class Nextory(Source):
         self._client.headers.update(
             {
                 "X-Application-Id": "200",
-                "X-App-Version": "5.0.0",
+                "X-App-Version": "5.4.1",
                 "X-Locale": LOCALE,
                 "X-Model": "Personal Computer",
                 "X-Device-Id": device_id,
-                "locale": LOCALE,
-                "device": device_id,
-                "osinfo": "Android 13",
-                "model": "Personal Computer",
-                "version": "4.34.6",
+                "X-Os-Info": "Android",
                 "appid": "200",
             }
         )
@@ -108,8 +104,7 @@ class Nextory(Source):
         if "serier" in url:
             return await self._download_series(url_id)
         else:
-            book_id = await self._get_book_id_from_url_id(url_id)
-            return await self._download_book(book_id)
+            return await self._download_book(url_id)
 
 
     async def download_book_from_id(self, book_id: str) -> Book:
