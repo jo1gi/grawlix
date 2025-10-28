@@ -50,10 +50,15 @@ grawlix --username "user@example.com" --password "SuperSecretPassword" <url>
 
 **Config file example**
 ```toml
-[sources.name]
+# Global settings
+write_metadata_to_epub = true
+output = "~/ebooks/{series}/{index} - {title}.{ext}"
+
+[sources.storytel]
 username = "user@example.com"
 password = "SuperSecretPassword"
 ```
+
 Config file should be placed in:
 - Linux: `~/.config/grawlix/grawlix.toml`
 - macOS: `~/Library/Application Support/grawlix/grawlix.toml`
@@ -61,14 +66,112 @@ Config file should be placed in:
 
 ### Cookies
 Some sources can be authenticated with Netscape cookie files. I use
-[this extension](https://github,com/rotemdan/ExportCookies) to export my
+[this extension](https://github.com/rotemdan/ExportCookies) to export my
 cookies from my browser.
 
 Cookies can be placed in current dir as `cookies.txt` or be given with the
-`--cookie` argument.
+`--cookies` argument.
+
+## Configuration
+
+### Global Settings
+
+The following settings can be added to your config file (before any `[sources.*]` sections):
+
+| Setting | Type | Description | Example |
+|---------|------|-------------|---------|
+| `write_metadata_to_epub` | boolean | Automatically write metadata to EPUB files (currently supports Storytel) | `true` or `false` |
+| `output` | string | Default output path template (supports `~`, environment variables, and template variables) | `"~/ebooks/{title}.{ext}"` |
+
+### Output Templates
+
+The `output` setting supports template variables that are replaced with book metadata:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{title}` | Book title | "The Witcher" |
+| `{series}` | Series name | "The Witcher Saga" |
+| `{index}` | Series index/number | "1" |
+| `{authors}` | Authors (semicolon-separated) | "Andrzej Sapkowski" |
+| `{publisher}` | Publisher name | "Orbit" |
+| `{language}` | Language code | "en" |
+| `{release_date}` | Release date | "2020-01-15" |
+| `{ext}` | File extension | "epub" |
+
+**Example templates:**
+```toml
+# Simple
+output = "~/books/{title}.{ext}"
+
+# Organized by series
+output = "~/books/{series}/{index} - {title}.{ext}"
+
+# With author
+output = "~/books/{authors}/{series}/{title}.{ext}"
+```
+
+**Path expansion:**
+- `~` expands to home directory
+- Environment variables work: `$HOME` (Unix) or `%USERPROFILE%` (Windows)
+- Absolute paths: `/path/to/books` or `C:\Books`
+- Relative paths: `downloads/{title}.{ext}` (relative to current directory)
 
 ## Download books
+
 To download a book run:
 ```shell
 grawlix [options] <book url>
+```
+
+### Command Line Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--version` | `-v` | Show version number |
+| `--file <path>` | `-f` | File with URLs (one per line) |
+| `--username <email>` | `-u` | Username for authentication |
+| `--password <password>` | `-p` | Password for authentication |
+| `--library <name>` | | Library name (for sources that require it) |
+| `--cookies <path>` | `-c` | Path to Netscape cookie file |
+| `--output <template>` | `-o` | Output path template (overrides config) |
+| `--write-metadata-to-epub` | | Write metadata to EPUB files (overrides config) |
+| `--debug` | | Enable debug messages |
+
+**Examples:**
+```shell
+# Download to specific location
+grawlix -o "~/downloads/{title}.{ext}" <url>
+
+# Download with metadata writing
+grawlix --write-metadata-to-epub <url>
+
+# Batch download from file
+grawlix -f urls.txt
+
+# With authentication
+grawlix -u user@example.com -p password <url>
+
+# Debug mode
+grawlix --debug <url>
+```
+
+## Metadata Writing
+
+For supported sources (currently Storytel), grawlix can write rich metadata to EPUB files including:
+
+- Title and original title
+- Authors and translators
+- Series information (Calibre-compatible)
+- Publisher, ISBN, language
+- Description and categories
+- Release date
+
+Enable globally in config:
+```toml
+write_metadata_to_epub = true
+```
+
+Or use the CLI flag for one-time use:
+```shell
+grawlix --write-metadata-to-epub <url>
 ```

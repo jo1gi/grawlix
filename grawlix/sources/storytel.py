@@ -9,6 +9,7 @@ from urllib3.util import parse_url
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from typing import Any
+from datetime import datetime
 
 class Storytel(Source):
     name: str = "Storytel"
@@ -48,18 +49,77 @@ class Storytel(Source):
             f"https://api.storytel.net/book-details/consumables/{book_id}?kidsMode=false&configVariant=default"
         )
         details = response.json()
+        logging.debug(f"Full book details JSON: {json.dumps(details, indent=2)}")
 
-        return Book(
-            metadata = Metadata(
-                title = details["title"]
-            ),
+        # Extract metadata from details
+        metadata = self._extract_metadata(details)
+
+        book = Book(
+            metadata = metadata,
             data = SingleFile(
                 OnlineFile(
                     url = epub_url,
                     extension = "epub",
                     headers = self._client.headers
                 )
-            )
+            ),
+            source_data = {
+                "source_name": "storytel",
+                "details": details
+            }
+        )
+        return book
+
+
+    def _extract_metadata(self, details: dict) -> Metadata:
+        """
+        Extract metadata from Storytel book details JSON
+
+        :param details: Book details from Storytel API
+        :return: Metadata object
+        """
+        from datetime import datetime
+
+        # Extract ebook-specific format data
+        ebook_format = None
+        for fmt in details.get("formats", []):
+            if fmt.get("type") == "ebook":
+                ebook_format = fmt
+                break
+
+        # Extract basic metadata
+        title = details.get("title", "Unknown")
+        authors = [author["name"] for author in details.get("authors", [])]
+        language = details.get("language")
+        description = details.get("description")
+
+        # Extract ebook-specific publisher and release date
+        publisher = None
+        release_date = None
+        if ebook_format:
+            publisher = ebook_format.get("publisher", {}).get("name")
+            release_date_str = ebook_format.get("releaseDate")
+            if release_date_str:
+                # Parse ISO format date
+                release_date = datetime.fromisoformat(release_date_str.replace("Z", "+00:00")).date()
+
+        # Extract series information
+        series = None
+        index = None
+        series_info = details.get("seriesInfo")
+        if series_info:
+            series = series_info.get("name")
+            index = series_info.get("orderInSeries")
+
+        return Metadata(
+            title=title,
+            authors=authors,
+            language=language,
+            publisher=publisher,
+            description=description,
+            release_date=release_date,
+            series=series,
+            index=index
         )
 
 

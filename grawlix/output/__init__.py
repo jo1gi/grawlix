@@ -41,11 +41,21 @@ def format_output_location(book: Book, output_format: OutputFormat, template: st
 
     :param book: Book to download
     :param output_format: Output format of book
-    :param template: Template for output path
+    :param template: Template for output path (supports ~, environment variables, and absolute paths)
     :returns: Output path
     """
     values = { key: remove_unwanted_chars(value) for key, value in book.metadata.as_dict().items() }
     path = template.format(**values, ext = output_format.extension)
+
+    # Expand user home directory (~/... or ~user/...)
+    path = os.path.expanduser(path)
+
+    # Expand environment variables ($VAR or %VAR% depending on OS)
+    path = os.path.expandvars(path)
+
+    # Normalize path separators for current OS
+    path = os.path.normpath(path)
+
     return path
 
 
@@ -64,15 +74,65 @@ def remove_strings(input: str, strings: Iterable[str]) -> str:
 
 def remove_unwanted_chars(input: str) -> str:
     """
-    Remove chars from string that are not supported in output path
+    Sanitize string for use in file paths across all operating systems.
+    Replaces forbidden characters with safe alternatives and handles edge cases.
 
-    :param input: The string to remove chars from
-    :returns: input without unsupported chars
+    :param input: The string to sanitize
+    :returns: Safe filename string
     """
+    import re
+
+    # Replace null bytes and control characters
+    output = re.sub(r'[\x00-\x1f\x7f]', '', input)
+
+    # Platform-specific forbidden characters - replace with underscore
     if platform.system() == "Windows":
-        return remove_strings(input, "<>:\"/\\|?*")
+        # Windows forbidden: < > : " / \ | ? *
+        forbidden_chars = '<>:"|?*'
+        for char in forbidden_chars:
+            output = output.replace(char, '_')
+        # Replace slashes with dash for better readability
+        output = output.replace('/', '-')
+        output = output.replace('\\', '-')
+
+        # Windows reserved names (case-insensitive)
+        reserved_names = {
+            'CON', 'PRN', 'AUX', 'NUL',
+            'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+            'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+        }
+        # Check if the name (without extension) is reserved
+        name_part = output.split('.')[0].upper()
+        if name_part in reserved_names:
+            output = f"_{output}"
+
+        # Remove trailing spaces and periods (Windows doesn't allow these)
+        output = output.rstrip('. ')
+
     else:
-        return remove_strings(input, "/")
+        # Unix-like systems (macOS, Linux)
+        # Only / is truly forbidden, but : can cause issues on macOS
+        output = output.replace('/', '-')
+        # Some versions of macOS have issues with :
+        output = output.replace(':', '-')
+
+    # Remove leading/trailing whitespace
+    output = output.strip()
+
+    # Limit filename length (most filesystems have 255 byte limit)
+    # Reserve some space for extensions and numbering
+    max_length = 200
+    if len(output.encode('utf-8')) > max_length:
+        # Truncate while respecting UTF-8 character boundaries
+        output_bytes = output.encode('utf-8')[:max_length]
+        # Decode, ignoring partial characters at the end
+        output = output_bytes.decode('utf-8', errors='ignore').rstrip()
+
+    # Ensure we don't return an empty string
+    if not output:
+        output = "untitled"
+
+    return output
 
 
 def get_default_format(book: Book) -> OutputFormat:
