@@ -54,7 +54,10 @@ grawlix --username "user@example.com" --password "SuperSecretPassword" <url>
 username = "user@example.com"
 password = "SuperSecretPassword"
 ```
-Config file should be placed in `~/.config/grawlix/grawlix.toml`
+Config file should be placed in:
+- Linux: `~/.config/grawlix/grawlix.toml`
+- macOS: `~/Library/Application Support/grawlix/grawlix.toml`
+- Windows: `%LOCALAPPDATA%\jo1gi\grawlix\grawlix.toml`
 
 ### Cookies
 Some sources can be authenticated with Netscape cookie files. I use
