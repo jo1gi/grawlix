@@ -80,7 +80,7 @@ The following settings can be added to your config file (before any `[sources.*]
 
 | Setting | Type | Description | Example |
 |---------|------|-------------|---------|
-| `write_metadata_to_epub` | boolean | Automatically write metadata to EPUB files (currently supports Storytel) | `true` or `false` |
+| `write_metadata_to_epub` | boolean | Automatically write metadata to EPUB files (supports Storytel and Nextory) | `true` or `false` |
 | `output` | string | Default output path template (supports `~`, environment variables, and template variables) | `"~/ebooks/{title}.{ext}"` |
 
 ### Output Templates
@@ -96,19 +96,34 @@ The `output` setting supports template variables that are replaced with book met
 | `{publisher}` | Publisher name | "Orbit" |
 | `{language}` | Language code | "en" |
 | `{release_date}` | Release date | "2020-01-15" |
-| `{ext}` | File extension | "epub" |
+| `{source}` | Source/service name | "Storytel", "Marvel", etc. |
+| `{ext}` | File extension (auto-detected from source) | "epub" |
 
 **Example templates:**
 ```toml
-# Simple
+# Simple (auto-detect format)
 output = "~/books/{title}.{ext}"
 
-# Organized by series
+# Force EPUB format
+output = "~/books/{title}.epub"
+
+# Organized by source
+output = "~/books/{source}/{title}.{ext}"
+
+# Organized by series (auto-detect format)
 output = "~/books/{series}/{index} - {title}.{ext}"
 
-# With author
-output = "~/books/{authors}/{series}/{title}.{ext}"
+# Force EPUB with series organization
+output = "~/books/{series}/{index} - {title}.epub"
+
+# Organized by source and series
+output = "~/books/{source}/{series}/{index} - {title}.epub"
 ```
+
+**Note:** The file extension in your template determines the output format:
+- Use `.epub` to force EPUB output
+- Use `.cbz` to force CBZ (comic book) output
+- Use `{ext}` to auto-detect the best format for each source
 
 **Path expansion:**
 - `~` expands to home directory
@@ -157,14 +172,21 @@ grawlix --debug <url>
 
 ## Metadata Writing
 
-For supported sources (currently Storytel), grawlix can write rich metadata to EPUB files including:
+For supported sources (Storytel and Nextory), grawlix can write rich metadata to EPUB files including:
 
 - Title and original title
 - Authors and translators
 - Series information (Calibre-compatible)
 - Publisher, ISBN, language
-- Description and categories
+- Description and categories/tags
 - Release date
+
+### Supported Sources
+
+| Source | Title | Authors | Translators | Series | Publisher | ISBN | Language | Description | Release Date |
+|--------|-------|---------|-------------|--------|-----------|------|----------|-------------|--------------|
+| Storytel | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Nextory | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 Enable globally in config:
 ```toml

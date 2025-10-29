@@ -135,4 +135,3 @@ class Epub(OutputFormat):
         output.add_item(epub.EpubNcx())
         output.add_item(epub.EpubNav())
         epub.write_epub(location, output)
-        exit()

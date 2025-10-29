@@ -15,6 +15,7 @@ class Metadata:
     identifier: Optional[str] = None
     description: Optional[str] = None
     release_date: Optional[date] = None
+    source: Optional[str] = None
 
     def as_dict(self) -> dict:
         return {
@@ -27,6 +28,7 @@ class Metadata:
             "authors": "; ".join(self.authors),
             "description": self.description or "UNKNOWN",
             "release_date": self.release_date.isoformat() if self.release_date else "UNKNOWN",
+            "source": self.source or "UNKNOWN",
         }
 
 

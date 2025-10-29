@@ -175,18 +175,21 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
 
     # Write metadata if requested and available
     if write_metadata and book.source_data:
-        from .output import format_output_location, get_default_format, find_output_format
+        from .output import format_output_location, get_default_format, find_output_format, get_valid_extensions
         from . import epub_metadata, epub_metadata_writers
 
         # Determine output file location
         _, ext = os.path.splitext(template)
         ext = ext[1:]
-        if ext:
+
+        # Handle {ext} placeholder - use default format for the book type
+        if ext and ext not in ['{ext}', 'ext'] and ext in get_valid_extensions():
             output_format = find_output_format(book, ext)()
         else:
             output_format = get_default_format(book)
 
         location = format_output_location(book, output_format, template)
+        logging.debug(f"Output location: {location}, exists={os.path.exists(location)}, ends_with_epub={location.endswith('.epub')}")
 
         # Write metadata if it's an EPUB file
         if location.endswith('.epub') and os.path.exists(location):

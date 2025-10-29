@@ -54,9 +54,54 @@ def storytel_transformer(details: dict) -> dict:
     return metadata
 
 
+def nextory_transformer(details: dict) -> dict:
+    """
+    Transform Nextory book details JSON into standardized EPUB metadata format
+
+    :param details: Nextory book details JSON
+    :return: Standardized metadata dict
+    """
+    # Extract epub format
+    epub_format = None
+    for fmt in details.get("formats", []):
+        if fmt.get("type") == "epub":
+            epub_format = fmt
+            break
+
+    metadata = {
+        "title": details.get("title"),
+        "authors": [author.get("name", "") for author in details.get("authors", [])],
+        "translators": [translator.get("name", "") for translator in epub_format.get("translators", []) if epub_format],
+        "description": details.get("description_full"),
+        "language": details.get("language"),
+    }
+
+    # Epub-specific metadata
+    if epub_format:
+        metadata["publisher"] = epub_format.get("publisher", {}).get("name")
+        metadata["isbn"] = epub_format.get("isbn")
+
+        publication_date = epub_format.get("publication_date")
+        if publication_date:
+            # Already in YYYY-MM-DD format
+            metadata["release_date"] = publication_date
+
+    # Series info
+    series_info = details.get("series")
+    if series_info:
+        metadata["series_name"] = series_info.get("name")
+        # Nextory uses "volume" at top level, not in series info
+        volume = details.get("volume")
+        if volume:
+            metadata["series_index"] = volume
+
+    return metadata
+
+
 # Registry of transformers by source name
 TRANSFORMERS = {
     "storytel": storytel_transformer,
+    "nextory": nextory_transformer,
     # Add more sources here as they're implemented
 }
 

@@ -19,6 +19,57 @@ class Storytel(Source):
     _authentication_methods = [ "login" ]
     __download_counter = 0
 
+    # Authentication methods
+
+    async def login(self, username: str, password: str, **kwargs) -> None:
+        self.__username = username
+        self.__password = self.encrypt_password(password)
+        self._client.headers.update({"User-Agent": "Storytel/23.49 (Android 13; Pixel 6) Release/2288481"})
+        await self.authenticate()
+
+
+    @staticmethod
+    def encrypt_password(password: str) -> str:
+        """
+        Encrypt password with predefined keys.
+        This encrypted password is used for login.
+
+        :param password: User defined password
+        :returns: Encrypted password
+        """
+        # Thanks to https://github.com/javsanpar/storytel-tui
+        key = b"VQZBJ6TD8M9WBUWT"
+        iv = b"joiwef08u23j341a"
+        msg = pad(password.encode(), AES.block_size)
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        cipher_text = cipher.encrypt(msg)
+        return cipher_text.hex()
+
+
+    async def authenticate(self) -> None:
+        """Authenticate with storytel"""
+        response = await self._client.post(
+            f"https://www.storytel.com/api/login.action?m=1&token=guestsv&userid=-1&version=23.49&terminal=android&locale=sv&deviceId=995f2562-0e44-4410-b1b9-8d08261f33c4&kidsMode=false",
+            data = {
+                "uid": self.__username,
+                "pwd": self.__password
+            }
+        )
+        if response.status_code != 200:
+            raise SourceNotAuthenticated
+        user_data = response.json()
+        jwt = user_data["accountInfo"]["jwt"]
+        self._client.headers.update({"authorization": f"Bearer {jwt}"})
+
+
+    async def reauthenticate(self) -> None:
+        """Reauthenticate if required"""
+        if self.__download_counter > 0 and self.__download_counter % 10 == 0:
+            await self.authenticate()
+
+
+    # Main download methods
+
     async def download(self, url: str) -> Result:
         await self.reauthenticate()
 
@@ -35,6 +86,22 @@ class Storytel(Source):
 
         raise InvalidUrl
 
+
+    @staticmethod
+    def extract_id_from_url(url: str) -> str:
+        """
+        Extract id from url
+
+        :param url: Url containing id
+        :return: Id
+        """
+        parsed = parse_url(url)
+        if parsed.path is None:
+            raise DataNotFound
+        return parsed.path.split("-")[-1]
+
+
+    # Book download path
 
     async def download_book_from_id(self, book_id: str) -> Book:
         # Epub location
@@ -78,8 +145,6 @@ class Storytel(Source):
         :param details: Book details from Storytel API
         :return: Metadata object
         """
-        from datetime import datetime
-
         # Extract ebook-specific format data
         ebook_format = None
         for fmt in details.get("formats", []):
@@ -119,9 +184,12 @@ class Storytel(Source):
             description=description,
             release_date=release_date,
             series=series,
-            index=index
+            index=index,
+            source="Storytel"
         )
 
+
+    # List download path
 
     async def download_list(self, url: str, list_type: str, language: str) -> Series:
         """
@@ -157,23 +225,22 @@ class Storytel(Source):
     ) -> dict[str, Any]:
         """Download details about book list
 
-        :param formats: comma serapted list of formats (abook,ebook,podcast)
-        :param languages: comma seperated list of languages (en,de,tr,ar,ru,pl,it,es,sv,fr,nl)
+        :param formats: comma separated list of formats (abook,ebook,podcast)
+        :param languages: comma separated list of languages (en,de,tr,ar,ru,pl,it,es,sv,fr,nl)
         """
-        nextPageToken = 0
+        # API returns only 10 items per request, so we need to paginate
+        # Start with None to ensure we enter the loop and make the first request
+        result: dict[str, Any] = {"nextPageToken": None}
+        is_first_page = True
 
-        # API returns only 10 items per request
-        # if the nextPageToken
-        result: dict[str, Any] = {"nextPageToken": False}
-
-        while result["nextPageToken"] is not None:
+        while result["nextPageToken"] is not None or is_first_page:
             params: dict[str, str] = {
                 "includeListDetails": "true",  # include listMetadata,filterOptions,sortOption sections
                 "includeFormats": formats,
                 "includeLanguages": languages,
                 "kidsMode": "false",
             }
-            if result["nextPageToken"]:
+            if result.get("nextPageToken"):
                 params["nextPageToken"] = result["nextPageToken"]
 
             response = await self._client.get(
@@ -182,72 +249,12 @@ class Storytel(Source):
             )
 
             data = response.json()
-            if result["nextPageToken"] == 0:
+            if is_first_page:
                 result = data
+                is_first_page = False
             else:
                 result["items"].extend(data["items"])
                 result["nextPageToken"] = data["nextPageToken"]
             logging.debug(f"{result=}")
 
         return result
-
-
-    @staticmethod
-    def extract_id_from_url(url: str) -> str:
-        """
-        Extract id from url
-
-        :param url: Url containing id
-        :return: Id
-        """
-        parsed = parse_url(url)
-        if parsed.path is None:
-            raise DataNotFound
-        return parsed.path.split("-")[-1]
-
-
-    @staticmethod
-    def encrypt_password(password: str) -> str:
-        """
-        Encrypt password with predefined keys.
-        This encrypted password is used for login.
-
-        :param password: User defined password
-        :returns: Encrypted password
-        """
-        # Thanks to https://github.com/javsanpar/storytel-tui
-        key = b"VQZBJ6TD8M9WBUWT"
-        iv = b"joiwef08u23j341a"
-        msg = pad(password.encode(), AES.block_size)
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        cipher_text = cipher.encrypt(msg)
-        return cipher_text.hex()
-
-
-    async def reauthenticate(self) -> None:
-        """Reauthenticate if required"""
-        if self.__download_counter > 0 and self.__download_counter % 10 == 0:
-            await self.authenticate()
-
-
-    async def authenticate(self) -> None:
-        """Authenticate with storytel"""
-        response = await self._client.post(
-            f"https://www.storytel.com/api/login.action?m=1&token=guestsv&userid=-1&version=23.49&terminal=android&locale=sv&deviceId=995f2562-0e44-4410-b1b9-8d08261f33c4&kidsMode=false",
-            data = {
-                "uid": self.__username,
-                "pwd": self.__password
-            }
-        )
-        if response.status_code != 200:
-            raise SourceNotAuthenticated
-        user_data = response.json()
-        jwt = user_data["accountInfo"]["jwt"]
-        self._client.headers.update({"authorization": f"Bearer {jwt}"})
-
-
-    async def login(self, username: str, password: str, **kwargs) -> None:
-        self.__username = username
-        self.__password = self.encrypt_password(password)
-        self._client.headers.update({"User-Agent": "Storytel/23.49 (Android 13; Pixel 6) Release/2288481"})
-        await self.authenticate()
