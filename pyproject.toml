@@ -6,21 +6,27 @@ authors = [
 description = "CLI tool for downloading ebooks"
 readme = "README.md"
 keywords = ["ebook", "cli", "downloader"]
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 dependencies = [
-    "appdirs",
-    "beautifulsoup4",
-    "blackboxprotobuf",
-    "EbookLib",
-    "httpx",
-    "importlib-resources",
-    "lxml",
-    "pycryptodome",
-    "rich",
-    "tomli",
+    "beautifulsoup4>=4.9.0",
+    "bbpb>=1.0.0",
+    "EbookLib>=0.17",
+    "httpx>=0.23.0",
+    "importlib-resources>=5.0",
+    "lxml>=4.6.0",
+    "platformdirs>=3.0.0",
+    "pycryptodome>=3.10.0",
+    "rich>=10.0.0",
+    "tomli>=1.0.0; python_version<'3.11'",
 ]
 dynamic = ["version"]
 

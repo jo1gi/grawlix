@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 import tomli
-import appdirs
+from platformdirs import user_config_dir
 import os
 
 
@@ -27,7 +27,7 @@ def load_config() -> Config:
 
     :returns: Config object
     """
-    config_dir = appdirs.user_config_dir("grawlix", "jo1gi")
+    config_dir = user_config_dir("grawlix", "jo1gi")
     config_file = os.path.join(config_dir, "grawlix.toml")
     if os.path.exists(config_file):
         try:
