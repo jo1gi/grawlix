@@ -6,6 +6,7 @@ from .output_format import OutputFormat
 from .acsm import Acsm
 from .cbz import Cbz
 from .epub import Epub
+from .pdf import Pdf
 
 from typing import Callable, Iterable
 from pathlib import Path
@@ -184,4 +185,5 @@ def get_output_formats() -> list[type[OutputFormat]]:
         Acsm,
         Cbz,
         Epub,
+        Pdf,
     ]

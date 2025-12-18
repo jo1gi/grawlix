@@ -3,7 +3,7 @@ from grawlix.encryption import AESEncryption
 from grawlix.exceptions import InvalidUrl
 from .source import Source
 
-from typing import Optional
+from typing import Optional, Tuple
 import uuid
 import base64
 
@@ -24,14 +24,12 @@ class Nextory(Source):
         self._client.headers.update(
             {
                 "X-Application-Id": "200",
-                "X-App-Version": "5.47.0",
+                "X-App-Version": "2025.12.1",
                 "X-Locale": LOCALE,
                 "X-Model": "Personal Computer",
                 "X-Device-Id": device_id,
                 "X-OS-INFO": "Personal Computer",
                 "locale": LOCALE,
-                "device": device_id,
-                "appid": "200",
             }
         )
         # Login for account
@@ -106,10 +104,12 @@ class Nextory(Source):
 
     async def _download_book(self, book_id: str) -> Book:
         product_data = await self._get_product_data(book_id)
-        epub_id = self._find_epub_id(product_data)
-        pages = await self._get_pages(epub_id)
+        format_type, format_id = self._find_format(product_data)
+        # Nextory serves all books via epub endpoint regardless of original format
+        data = await self._get_epub_data(format_id)
+
         return Book(
-            data = pages,
+            data = data,
             metadata = Metadata(
                 title = product_data["title"],
                 authors = [author["name"] for author in product_data["authors"]],
@@ -117,6 +117,7 @@ class Nextory(Source):
             ),
             source_data = {
                 "source_name": "nextory",
+                "format_type": format_type,
                 "details": product_data
             }
         )
@@ -136,27 +137,29 @@ class Nextory(Source):
 
 
     @staticmethod
-    def _find_epub_id(product_data) -> str:
-        """Find id of book format of type epub for given book"""
-        for format in product_data["formats"]:
-            if format["type"] == "epub":
-                return format["identifier"]
+    def _find_format(product_data) -> Tuple[str, str]:
+        """Find a supported book format (epub or pdf)"""
+        for format_type in ("epub", "pdf"):
+            for fmt in product_data["formats"]:
+                if fmt["type"] == format_type:
+                    return (format_type, fmt["identifier"])
         raise InvalidUrl
 
 
     @staticmethod
     def _extract_series_name(product_info: dict) -> Optional[str]:
-        if "series" not in product_info:
+        series = product_info.get("series")
+        if series is None:
             return None
-        return product_info["series"]["name"]
+        return series["name"]
 
 
-    async def _get_pages(self, epub_id: str) -> BookData:
+    async def _get_epub_data(self, epub_id: str) -> BookData:
         """
-        Download page information for book
+        Download epub data for book
 
         :param epub_id: Id of epub file
-        :return: Page data
+        :return: Epub data
         """
         # Nextory books are for some reason split up into multiple epub files -
         # one for each chapter file. All of these files has to be decrypted and
@@ -187,7 +190,6 @@ class Nextory(Source):
             files,
             files_in_toc
         )
-
 
     @staticmethod
     def _fix_key(value: str) -> bytes:

@@ -173,6 +173,18 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
     # Download the book
     await download_book(book, update_function, template)
 
+    # Convert PDF-in-epub to PDF if needed
+    if book.source_data and book.source_data.get('format_type') == 'pdf':
+        from .output import format_output_location, get_default_format
+        from .pdf_converter import convert_pdf_epub_to_pdf, is_pdf_in_epub
+
+        output_format = get_default_format(book)
+        location = format_output_location(book, output_format, template)
+
+        if location.endswith('.epub') and os.path.exists(location) and is_pdf_in_epub(location):
+            convert_pdf_epub_to_pdf(location)
+            logging.debug(f"Converted PDF-in-epub to PDF: {location}")
+
     # Write metadata if requested and available
     if write_metadata and book.source_data:
         from .output import format_output_location, get_default_format, find_output_format, get_valid_extensions

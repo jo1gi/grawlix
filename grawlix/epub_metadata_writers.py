@@ -61,27 +61,30 @@ def nextory_transformer(details: dict) -> dict:
     :param details: Nextory book details JSON
     :return: Standardized metadata dict
     """
-    # Extract epub format
-    epub_format = None
-    for fmt in details.get("formats", []):
-        if fmt.get("type") == "epub":
-            epub_format = fmt
+    # Extract ebook format (epub or pdf - Nextory serves both as epub)
+    ebook_format = None
+    for fmt_type in ("epub", "pdf"):
+        for fmt in details.get("formats", []):
+            if fmt.get("type") == fmt_type:
+                ebook_format = fmt
+                break
+        if ebook_format:
             break
 
     metadata = {
         "title": details.get("title"),
         "authors": [author.get("name", "") for author in details.get("authors", [])],
-        "translators": [translator.get("name", "") for translator in epub_format.get("translators", []) if epub_format],
+        "translators": [translator.get("name", "") for translator in ebook_format.get("translators", [])] if ebook_format else [],
         "description": details.get("description_full"),
         "language": details.get("language"),
     }
 
-    # Epub-specific metadata
-    if epub_format:
-        metadata["publisher"] = epub_format.get("publisher", {}).get("name")
-        metadata["isbn"] = epub_format.get("isbn")
+    # Format-specific metadata
+    if ebook_format:
+        metadata["publisher"] = ebook_format.get("publisher", {}).get("name")
+        metadata["isbn"] = ebook_format.get("isbn")
 
-        publication_date = epub_format.get("publication_date")
+        publication_date = ebook_format.get("publication_date")
         if publication_date:
             # Already in YYYY-MM-DD format
             metadata["release_date"] = publication_date
