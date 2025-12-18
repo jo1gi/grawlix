@@ -1,0 +1,5 @@
+[red]ERROR: Unsupported output format[/red]
+
+The requested output format is not compatible with the downloaded content type.
+Please check your output template or try using {{ext}} to auto-detect the correct format.
+If this error persists, please create an issue at {issue}

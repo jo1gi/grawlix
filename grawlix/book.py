@@ -15,18 +15,20 @@ class Metadata:
     identifier: Optional[str] = None
     description: Optional[str] = None
     release_date: Optional[date] = None
+    source: Optional[str] = None
 
     def as_dict(self) -> dict:
         return {
             "title": self.title,
             "series": self.series or "UNKNOWN",
-            "index": self.index or "UNKNOWN",
+            "index": str(self.index) if self.index is not None else "UNKNOWN",
             "publisher": self.publisher or "UNKNOWN",
             "identifier": self.identifier or "UNKNOWN",
             "language": self.language or "UNKNOWN",
             "authors": "; ".join(self.authors),
             "description": self.description or "UNKNOWN",
             "release_date": self.release_date.isoformat() if self.release_date else "UNKNOWN",
+            "source": self.source or "UNKNOWN",
         }
 
 
@@ -97,6 +99,7 @@ class Book:
     metadata: Metadata
     data: BookData
     overwrite: bool = False
+    source_data: Optional[dict] = None  # For storing source-specific data
 
 T = TypeVar("T")
 

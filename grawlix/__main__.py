@@ -12,6 +12,10 @@ from functools import partial
 import os
 import asyncio
 import traceback
+import warnings
+
+# Suppress deprecation warnings from dependencies
+warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf")
 
 
 def get_or_ask(attr: str, hidden: bool, source_config: Optional[SourceConfig], options) -> str:
@@ -34,6 +38,7 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str, Option
 
     username = get_or_ask("username", False, source_config, options)
     password = get_or_ask("password", True, source_config, options)
+    library = None
     if "library" in source._login_credentials:
         library = get_or_ask("library", False, source_config, options)
     # if source_name in config.sources:
@@ -116,10 +121,13 @@ async def main() -> None:
             result = await source.download(url)
             if isinstance(result, Book):
                 with logging.progress(result.metadata.title, source.name) as progress:
-                    template: str = args.output or "{title}.{ext}"
-                    await download_with_progress(result, progress, template)
+                    # Check CLI flag first, then config file, then default
+                    template: str = args.output or config.output or "{title}.{ext}"
+                    # Check both CLI flag and config file
+                    write_metadata = args.write_metadata_to_epub or config.write_metadata_to_epub
+                    await download_with_progress(result, progress, template, write_metadata)
             elif isinstance(result, Series):
-                await download_series(source, result, args)
+                await download_series(source, result, args, config)
             logging.info("")
         except GrawlixError as error:
             error.print_error()
@@ -128,34 +136,87 @@ async def main() -> None:
             exit(1)
 
 
-async def download_series(source: Source, series: Series, args) -> None:
+async def download_series(source: Source, series: Series, args, config: Config) -> None:
     """
     Download books in series
 
     :param series: Series to download
+    :param args: CLI arguments
+    :param config: Configuration
     """
-    template = args.output or "{series}/{title}.{ext}"
+    # Check CLI flag first, then config file, then default
+    template = args.output or config.output or "{series}/{title}.{ext}"
+    # Check both CLI flag and config file
+    write_metadata = args.write_metadata_to_epub or config.write_metadata_to_epub
     with logging.progress(series.title, source.name, len(series.book_ids)) as progress:
         for book_id in series.book_ids:
             try:
                 book: Book = await source.download_book_from_id(book_id)
-                await download_with_progress(book, progress, template)
+                await download_with_progress(book, progress, template, write_metadata)
             except AccessDenied as error:
                 logging.info("Skipping - Access Denied")
 
 
 
-async def download_with_progress(book: Book, progress: Progress, template: str):
+async def download_with_progress(book: Book, progress: Progress, template: str, write_metadata: bool = False):
     """
     Download book with progress bar in cli
 
     :param book: Book to download
     :param progress: Progress object
     :param template: Output template
+    :param write_metadata: Whether to write metadata to EPUB files
     """
     task = logging.add_book(progress, book)
     update_function = partial(progress.advance, task)
+
+    # Download the book
     await download_book(book, update_function, template)
+
+    # Convert PDF-in-epub to PDF if needed
+    if book.source_data and book.source_data.get('format_type') == 'pdf':
+        from .output import format_output_location, get_default_format
+        from .pdf_converter import convert_pdf_epub_to_pdf, is_pdf_in_epub
+
+        output_format = get_default_format(book)
+        location = format_output_location(book, output_format, template)
+
+        if location.endswith('.epub') and os.path.exists(location) and is_pdf_in_epub(location):
+            convert_pdf_epub_to_pdf(location)
+            logging.debug(f"Converted PDF-in-epub to PDF: {location}")
+
+    # Write metadata if requested and available
+    if write_metadata and book.source_data:
+        from .output import format_output_location, get_default_format, find_output_format, get_valid_extensions
+        from . import epub_metadata, epub_metadata_writers
+
+        # Determine output file location
+        _, ext = os.path.splitext(template)
+        ext = ext[1:]
+
+        # Handle {ext} placeholder - use default format for the book type
+        if ext and ext not in ['{ext}', 'ext'] and ext in get_valid_extensions():
+            output_format = find_output_format(book, ext)()
+        else:
+            output_format = get_default_format(book)
+
+        location = format_output_location(book, output_format, template)
+        logging.debug(f"Output location: {location}, exists={os.path.exists(location)}, ends_with_epub={location.endswith('.epub')}")
+
+        # Write metadata if it's an EPUB file
+        if location.endswith('.epub') and os.path.exists(location):
+            # Get source-specific data and transformer
+            source_name = book.source_data.get('source_name')
+            source_details = book.source_data.get('details')
+
+            if source_name and source_details:
+                transformer = epub_metadata_writers.get_transformer(source_name)
+                if transformer:
+                    transformed_metadata = transformer(source_details)
+                    epub_metadata.write_metadata_to_epub(transformed_metadata, location)
+                else:
+                    logging.debug(f"No metadata transformer found for source: {source_name}")
+
     progress.advance(task, 1)
 
 
