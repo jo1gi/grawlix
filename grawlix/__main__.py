@@ -20,7 +20,7 @@ def get_or_ask(attr: str, hidden: bool, source_config: Optional[SourceConfig], o
     or Prompt.ask(attr.capitalize(), password=hidden)
 
 
-def get_login(source: Source, config: Config, options) -> Tuple[str, str, Optional[str]]:
+def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
     """
     Get login credentials for source
 
@@ -34,18 +34,8 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str, Option
 
     username = get_or_ask("username", False, source_config, options)
     password = get_or_ask("password", True, source_config, options)
-    if "library" in source._login_credentials:
-        library = get_or_ask("library", False, source_config, options)
-    # if source_name in config.sources:
-    #     username = config.sources[source_name].username or options.username
-    #     password = config.sources[source_name].password or options.password
-    #     library = config.sources[source_name].library or options.library
-    # else:
-    #     username = options.username
-    #     password = options.password
-    #     library = options.library
 
-    return username, password, library
+    return username, password
 
 
 def get_urls(options) -> list[str]:
@@ -81,18 +71,19 @@ def get_cookie_file(options) -> Optional[str]:
     return None
 
 
-async def authenticate(source: Source, config: Config, options):
+async def authenticate(url: str, source: Source, config: Config, options):
     """
     Authenticate with source
 
+    :param url: The url of the book currently being downloaded
     :param source: Source to authenticate
     :param config: Content of config file
     :param options: Command line options
     """
     logging.info(f"Authenticating with source [magenta]{source.name}[/]")
     if source.supports_login:
-        username, password, library = get_login(source, config, options)
-        await source.login(username, password, library=library)
+        username, password = get_login(source, config, options)
+        await source.login(url, username, password)
         source.authenticated = True
     if not source.authenticated and source.supports_cookies:
         cookie_file = get_cookie_file(options)
@@ -112,7 +103,7 @@ async def main() -> None:
         try:
             source: Source = load_source(url)
             if not source.authenticated and source.requires_authentication:
-                await authenticate(source, config, args)
+                await authenticate(url, source, config, args)
             result = await source.download(url)
             if isinstance(result, Book):
                 with logging.progress(result.metadata.title, source.name) as progress:

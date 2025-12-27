@@ -24,7 +24,7 @@ class Nextory(Source):
         return str(uuid.uuid3(uuid.NAMESPACE_DNS, "audiobook-dl"))
 
 
-    async def login(self, username: str, password: str, **kwargs) -> None:
+    async def login(self, url: str, username: str, password: str) -> None:
         # Set permanent headers
         device_id = self._create_device_id()
         self._client.headers.update(

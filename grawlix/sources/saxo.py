@@ -13,7 +13,7 @@ class Saxo(Source):
     _authentication_methods = [ "login" ]
     user_id: str
 
-    async def login(self, username: str, password: str, **kwargs) -> None:
+    async def login(self, url: str, username: str, password: str) -> None:
         response = await self._client.post(
             "https://auth-read.saxo.com/auth/token",
             data = {

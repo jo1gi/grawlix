@@ -40,11 +40,6 @@ def parse_arguments() -> argparse.Namespace:
         dest = "password",
     )
     parser.add_argument(
-        '--library',
-        help = "Library for login",
-        dest = "library",
-    )
-    parser.add_argument(
         '-c',
         '--cookies',
         help = "Path to netscape cookie file",

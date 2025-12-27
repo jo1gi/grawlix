@@ -15,7 +15,6 @@ class InternetArchive(Source):
         r"https://archive.org/details/.+"
     ]
     _authentication_methods = [ "login", "cookies" ]
-    _login_credentials = [ "username", "password" ]
 
     @staticmethod
     def _format_data(content_type: str, fields):
@@ -26,7 +25,7 @@ class InternetArchive(Source):
         return data
 
 
-    async def login(self, username: str, password: str, **kwargs) -> None:
+    async def login(self, url: str, username: str, password: str) -> None:
         await self._client.get("https://archive.org/account/login")
         content_type = "----WebKitFormBoundary"+"".join(random.sample(string.ascii_letters + string.digits, 16))
         headers = {'Content-Type': 'multipart/form-data; boundary='+content_type}

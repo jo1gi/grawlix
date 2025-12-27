@@ -16,7 +16,6 @@ class Source(Generic[T]):
     name: str = "UNKNOWN"
     match: list[str] = []
     _authentication_methods: list[str] = []
-    _login_credentials = [ "username", "password" ]
     authenticated = False
 
     def __init__(self):
@@ -35,10 +34,11 @@ class Source(Generic[T]):
         return "login" in self._authentication_methods
 
 
-    async def login(self, username: str, password: str, **kwargs: str):
+    async def login(self, url: str, username: str, password: str):
         """
         Login to source
 
+        :param url: The url of the book being downloaded
         :param username: Username of user for source
         :param password: Password of user for source
         """
