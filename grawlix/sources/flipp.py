@@ -122,7 +122,6 @@ class Flipp(Source):
             metadata = Metadata(
                 title = f"{metadata['series_name']} {metadata['issueName']}",
                 series = metadata["series_name"],
-                identifier = issue_id
             ),
         )
 

@@ -12,21 +12,35 @@ class Metadata:
     authors: list[str] = field(default_factory=list)
     language: Optional[str] = None
     publisher: Optional[str] = None
-    identifier: Optional[str] = None
+    isbn: Optional[str] = None
     description: Optional[str] = None
     release_date: Optional[date] = None
+    source: Optional[str] = None
+    original_title: Optional[str] = None
+    translators: list[str] = field(default_factory=list)
+    category: Optional[str] = None
+    tags: list[str] = field(default_factory=list)
+    # EPUB 3 rendition properties (fixed-layout support)
+    rendition_layout: Optional[str] = None      # "pre-paginated" or "reflowable"
+    rendition_spread: Optional[str] = None      # "none", "auto", "landscape", "portrait", "both"
+    rendition_orientation: Optional[str] = None # "auto", "landscape", "portrait"
 
     def as_dict(self) -> dict:
         return {
             "title": self.title,
             "series": self.series or "UNKNOWN",
-            "index": self.index or "UNKNOWN",
+            "index": str(self.index) if self.index is not None else "UNKNOWN",
             "publisher": self.publisher or "UNKNOWN",
-            "identifier": self.identifier or "UNKNOWN",
+            "isbn": self.isbn or "UNKNOWN",
             "language": self.language or "UNKNOWN",
             "authors": "; ".join(self.authors),
             "description": self.description or "UNKNOWN",
             "release_date": self.release_date.isoformat() if self.release_date else "UNKNOWN",
+            "source": self.source or "UNKNOWN",
+            "original_title": self.original_title or "UNKNOWN",
+            "translators": "; ".join(self.translators),
+            "category": self.category or "UNKNOWN",
+            "tags": "; ".join(self.tags),
         }
 
 

@@ -1,11 +1,11 @@
-from grawlix.book import Book, Metadata, OnlineFile, BookData, OnlineFile, SingleFile, EpubInParts, Result, Series
+from grawlix.book import Book, Metadata, OnlineFile, BookData, EpubInParts, Result, Series
 from grawlix.encryption import AESEncryption
 from grawlix.exceptions import InvalidUrl
 from .source import Source
 
-from typing import Optional
+from typing import Tuple
+from datetime import date
 import uuid
-import rich
 import base64
 
 LOCALE = "en_GB"
@@ -17,12 +17,7 @@ class Nextory(Source):
     ]
     _authentication_methods = [ "login" ]
 
-
-    @staticmethod
-    def _create_device_id() -> str:
-        """Create unique device id"""
-        return str(uuid.uuid3(uuid.NAMESPACE_DNS, "audiobook-dl"))
-
+    # Authentication methods
 
     async def login(self, url: str, username: str, password: str) -> None:
         # Set permanent headers
@@ -30,12 +25,12 @@ class Nextory(Source):
         self._client.headers.update(
             {
                 "X-Application-Id": "200",
-                "X-App-Version": "5.4.1",
+                "X-App-Version": "2025.12.1",
                 "X-Locale": LOCALE,
                 "X-Model": "Personal Computer",
                 "X-Device-Id": device_id,
-                "X-Os-Info": "Android",
-                "appid": "200",
+                "X-OS-INFO": "Personal Computer",
+                "locale": LOCALE,
             }
         )
         # Login for account
@@ -47,7 +42,6 @@ class Nextory(Source):
             },
         )
         session_response = session_response.json()
-        rich.print(session_response)
         login_token = session_response["login_token"]
         country = session_response["country"]
         self._client.headers.update(
@@ -62,7 +56,6 @@ class Nextory(Source):
             "https://api.nextory.com/user/v1/me/profiles",
         )
         profiles_response = profiles_response.json()
-        rich.print(profiles_response)
         profile = profiles_response["profiles"][0]
         login_key = profile["login_key"]
         authorize_response = await self._client.post(
@@ -72,19 +65,24 @@ class Nextory(Source):
             }
         )
         authorize_response = authorize_response.json()
-        rich.print(authorize_response)
         profile_token = authorize_response["profile_token"]
-        self._client.headers.update({"X-Profile-Token": profile_token})
         self._client.headers.update({"X-Profile-Token": profile_token})
 
 
     @staticmethod
-    def _find_epub_id(product_data) -> str:
-        """Find id of book format of type epub for given book"""
-        for format in product_data["formats"]:
-            if format["type"] == "epub":
-                return format["identifier"]
-        raise InvalidUrl
+    def _create_device_id() -> str:
+        """Create unique device id"""
+        return str(uuid.uuid3(uuid.NAMESPACE_DNS, "audiobook-dl"))
+
+
+    # Main download methods
+
+    async def download(self, url: str) -> Result:
+        url_id = self._extract_id_from_url(url)
+        if "serier" in url:
+            return await self._download_series(url_id)
+        else:
+            return await self._download_book(url_id)
 
 
     @staticmethod
@@ -107,9 +105,155 @@ class Nextory(Source):
             return await self._download_book(url_id)
 
 
+
     async def download_book_from_id(self, book_id: str) -> Book:
         return await self._download_book(book_id)
 
+
+    # Book download path
+
+    async def _download_book(self, book_id: str) -> Book:
+        product_data = await self._get_product_data(book_id)
+        _, format_id = self._find_format(product_data)
+        # Nextory serves all books via epub endpoint regardless of original format
+        data = await self._get_epub_data(format_id)
+        metadata = self._extract_metadata(product_data)
+
+        return Book(
+            data = data,
+            metadata = metadata,
+        )
+
+
+    async def _get_product_data(self, book_id: str) -> dict:
+        """
+        Fetch product data from Nextory API
+
+        :param book_id: Id of book (can be URL id or internal id)
+        :return: Product data dictionary
+        """
+        response = await self._client.get(
+            f"https://api.nextory.com/library/v1/products/{book_id}",
+        )
+        return response.json()
+
+
+    @staticmethod
+    def _find_format(product_data) -> Tuple[str, str]:
+        """Find a supported book format (epub or pdf)"""
+        for format_type in ("epub", "pdf"):
+            for fmt in product_data["formats"]:
+                if fmt["type"] == format_type:
+                    return (format_type, fmt["identifier"])
+        raise InvalidUrl
+
+
+    def _extract_metadata(self, product_data: dict) -> Metadata:
+        """
+        Extract metadata from Nextory product data
+
+        :param product_data: Product data from Nextory API
+        :return: Metadata object
+        """
+        # Find epub or pdf format for format-specific metadata
+        ebook_format = None
+        for fmt_type in ("epub", "pdf"):
+            for fmt in product_data.get("formats", []):
+                if fmt.get("type") == fmt_type:
+                    ebook_format = fmt
+                    break
+            if ebook_format:
+                break
+
+        # Basic metadata
+        title = product_data.get("title", "Unknown")
+        authors = [author["name"] for author in product_data.get("authors", [])]
+        description = product_data.get("description_full")
+        language = product_data.get("language")
+
+        # Format-specific metadata
+        publisher = None
+        isbn = None
+        release_date = None
+        translators = []
+        if ebook_format:
+            publisher = ebook_format.get("publisher", {}).get("name") if ebook_format.get("publisher") else None
+            isbn = ebook_format.get("isbn")
+            translators = [t["name"] for t in ebook_format.get("translators", [])]
+            pub_date = ebook_format.get("publication_date")
+            if pub_date:
+                # Format is YYYY-MM-DD
+                release_date = date.fromisoformat(pub_date)
+
+        # Series info
+        series = None
+        index = None
+        series_info = product_data.get("series")
+        if series_info:
+            series = series_info.get("name")
+        volume = product_data.get("volume")
+        if volume:
+            index = volume
+
+        return Metadata(
+            title=title,
+            authors=authors,
+            translators=translators,
+            language=language,
+            publisher=publisher,
+            isbn=isbn,
+            description=description,
+            release_date=release_date,
+            series=series,
+            index=index,
+            source="Nextory"
+        )
+
+
+    async def _get_epub_data(self, epub_id: str) -> BookData:
+        """
+        Download epub data for book
+
+        :param epub_id: Id of epub file
+        :return: Epub data
+        """
+        # Nextory books are for some reason split up into multiple epub files -
+        # one for each chapter file. All of these files has to be decrypted and
+        # combined afterwards. Many of the provided epub files contain the same
+        # files and some of them contain the same file names but with variation
+        # in the content and comments that describe what should have been there
+        # if the book was whole from the start.
+        response = await self._client.get(
+            f"https://api.nextory.com/reader/books/{epub_id}/packages/epub"
+        )
+        epub_data = response.json()
+        encryption = AESEncryption(
+            key = self._fix_key(epub_data["crypt_key"]),
+            iv = self._fix_key(epub_data["crypt_iv"])
+        )
+        files = [
+            OnlineFile(
+                url = part["spine_url"],
+                extension = "epub",
+                encryption = encryption
+            )
+            for part in epub_data["spines"]
+        ]
+        files_in_toc = {}
+        for item in epub_data["toc"]["childrens"]: # Why is it "childrens"?
+            files_in_toc[item["src"]] = item["name"]
+        return EpubInParts(
+            files,
+            files_in_toc
+        )
+
+    @staticmethod
+    def _fix_key(value: str) -> bytes:
+        """Remove unused data and decode key"""
+        return base64.b64decode(value[:-1])
+
+
+    # Series download path
 
     async def _download_series(self, series_id: str) -> Series:
         """
@@ -127,96 +271,8 @@ class Nextory(Source):
             }
         )
         series_data = response.json()
-        book_ids = []
-        for book in series_data["products"]:
-            book_id = book["id"]
-            book_ids.append(book_id)
+        book_ids = [book["id"] for book in series_data["products"]]
         return Series(
             title = series_data["products"][0]["series"]["name"],
             book_ids = book_ids,
-        )
-
-
-    @staticmethod
-    def _extract_series_name(product_info: dict) -> Optional[str]:
-        if not "series" in product_info:
-            return None
-        return product_info["series"]["name"]
-
-
-    async def _get_book_id_from_url_id(self, url_id: str) -> str:
-        """
-        Download book id from url id
-
-        :param url_id: Id of book from url
-        :return: Book id
-        """
-        response = await self._client.get(
-            f"https://api.nextory.se/api/app/product/7.5/bookinfo",
-            params = { "id": url_id },
-        )
-        rich.print(response.url)
-        rich.print(response.content)
-        exit()
-
-
-    async def _download_book(self, book_id: str) -> Book:
-        product_data = await self._client.get(
-            f"https://api.nextory.com/library/v1/products/{book_id}"
-        )
-        product_data = product_data.json()
-        epub_id = self._find_epub_id(product_data)
-        pages = await self._get_pages(epub_id)
-        return Book(
-            data = pages,
-            metadata = Metadata(
-                title = product_data["title"],
-                authors = [author["name"] for author in product_data["authors"]],
-                series = self._extract_series_name(product_data),
-            )
-        )
-
-
-    @staticmethod
-    def _fix_key(value: str) -> bytes:
-        """Remove unused data and decode key"""
-        return base64.b64decode(value[:-1])
-
-
-    async def _get_pages(self, epub_id: str) -> BookData:
-        """
-        Download page information for book
-
-        :param epub_id: Id of epub file
-        :return: Page data
-        """
-        # Nextory books are for some reason split up into multiple epub files -
-        # one for each chapter file. All of these files has to be decrypted and
-        # combined afterwards. Many of the provided epub files contain the same
-        # files and some of them contain the same file names but with variation
-        # in the content and comments that describe what should have been there
-        # if the book was whole from the start.
-        response = await self._client.get(
-            f"https://api.nextory.com/reader/books/{epub_id}/packages/epub"
-        )
-        epub_data = response.json()
-        encryption = AESEncryption(
-            key = self._fix_key(epub_data["crypt_key"]),
-            iv = self._fix_key(epub_data["crypt_iv"])
-        )
-        files = []
-        for part in epub_data["spines"]:
-            files.append(
-                OnlineFile(
-                    url = part["spine_url"],
-                    extension = "epub",
-                    encryption = encryption
-                )
-            )
-        files_in_toc = {}
-        for item in epub_data["toc"]["childrens"]: # Why is it "childrens"?
-            files_in_toc[item["src"]] = item["name"]
-        return EpubInParts(
-            files,
-            files_in_toc
         )

@@ -59,4 +59,11 @@ def parse_arguments() -> argparse.Namespace:
         dest = "debug",
         action="store_true",
     )
+    # Metadata
+    parser.add_argument(
+        '--write-metadata-to-epub',
+        help = "Write metadata to EPUB files when downloading",
+        dest = "write_metadata_to_epub",
+        action="store_true",
+    )
     return parser.parse_args()

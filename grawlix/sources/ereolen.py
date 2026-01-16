@@ -23,7 +23,7 @@ class Ereolen(Source):
         .read_text("utf8") \
         .split("\n")
     match: list[str] = [
-        rf"https://(www.)?({"|".join(library_domains)})/reader\?orderid=.+$",
+        rf"https://(www.)?({'|'.join(library_domains)})/reader\?orderid=.+$",
     ]
     _authentication_methods = [ "login" ]
 
