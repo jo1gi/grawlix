@@ -1,142 +1,138 @@
-from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result
+from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result, StandardBookId
 from grawlix.exceptions import InvalidUrl, DataNotFound
-from grawlix import logging
+from grawlix import logging, source
+from grawlix.utils import http
 
 from .source import Source
 
-import re
+from bs4 import BeautifulSoup
 from datetime import date
+import re
 
-# Personal marvel ip key
-API_KEY = "83ac0da31d3f6801f2c73c7e07ad76e8"
-
-class Marvel(Source[str]):
-    name: str = "Marvel"
-    match = [
-        r"https://www.marvel.com/comics/issue/\d+/.+",
-        r"https://read.marvel.com/#/book/\d+",
-        r"https://www.marvel.com/comics/series/\d+/.+"
-    ]
-    _authentication_methods: list[str] = [ "cookies" ]
+SUPPORTED_URLS = [
+    r"https://www.marvel.com/comics/issue/\d+/.+",
+    r"https://read.marvel.com/#/book/\d+",
+    r"https://www.marvel.com/comics/series/\d+/.+"
+]
 
 
-    async def download(self, url: str) -> Result[str]:
-        match_index = self.get_match_index(url)
-        if match_index == 0:
-            issue_id = await self._get_issue_id(url)
-            return await self.download_book_from_id(issue_id)
-        if match_index == 1:
-            issue_id = url.split("/")[-1]
-            return await self.download_book_from_id(issue_id)
-        if match_index == 2:
-            return await self._download_series(url)
-        raise InvalidUrl
-
-
-    async def _download_series(self, url: str) -> Series[str]:
-        """
-        Download series
-
-        :param url: Url of series
-        :returns: Series data
-        """
-        series_id = url.split("/")[-2]
-        issue_ids = await self._download_issue_ids(series_id)
-        metadata = await self._download_series_metadata(series_id)
-        return Series(
-            title = metadata["data"]["results"][0]["title"],
-            book_ids = issue_ids
-        )
-
-
-    async def _download_issue_ids(self, series_id: str) -> list[str]:
-        """
-        Download issue ids from series
-
-        :param series_id: Id of comic series on marvel.com
-        :returns: List of comic ids for marvel comics
-        """
-        response = await self._client.get(
-            f"https://bifrost.marvel.com/v1/catalog/comics/mu?byId={series_id}&byZone=marvel_site_zone&byType=comic_series&orderBy=release_date+desc&formatType=issue,digitalcomic,collection,digitalverticalcomic&limit=10000&offset=0&variants=false"
-        )
-        issue_ids = [issue["digital_id"] for issue in response.json()["data"]["results"]]
-        return issue_ids
-
-
-    async def _download_series_metadata(self, series_id: str) -> dict:
-        """
-        Download series metadata
-
-        :param series_id: Id of comic series on marvel.com
-        :returns: Dictionary with metadata
-        """
-        response = await self._client.get(
-            f"https://gateway.marvel.com:443/v1/public/series/{series_id}?apikey={API_KEY}",
-            headers = {
-                "Referer": "https://developer.marvel.com/"
-            }
-        )
-        return response.json()
-
-    async def _get_issue_id(self, url: str) -> str:
-        """
-        Download issue id from url
-
-        :param url: Url to issue info page
-        :return: Issue id
-        """
-        response = await self._client.get(url)
+async def id_of_url(client: http.Client, url: str) -> StandardBookId[str]:
+    if re.match(SUPPORTED_URLS[0], url):
+        response = await client.get(url)
         search = re.search(r"\"digitalComicID\":(\d+)", response.text)
         if not search:
             raise DataNotFound
-        return search.group(1)
+        issue_id = search.group(1)
+        return StandardBookId("book", issue_id)
+
+    if re.match(SUPPORTED_URLS[1], url):
+        issue_id = url.split("/")[-1]
+        return StandardBookId("book", issue_id)
+
+    if re.match(SUPPORTED_URLS[2], url):
+        series_id = url.split("/")[-2]
+        return StandardBookId("series", series_id)
+
+    raise InvalidUrl
 
 
+async def download_series(client: http.Client, series_id: str) -> Series:
+    """
+    Download information about a series from Marvel.
 
-    async def download_book_from_id(self, issue_id: str) -> Book:
-        return Book(
-            metadata = await self._download_issue_metadata(issue_id),
-            data = await self._download_issue_pages(issue_id)
-        )
+    :param client: The http client.
+    :param series_id: The id of the series to download from.
+    :returns: The series data
+    """
+    response = await client.get(
+        f"https://bifrost.marvel.com/v1/catalog/comics/mu?",
+        params = {
+            "byId": series_id,
+            "byZone": "marvel_site_zone", "byType": "comic_series", "orderBy":
+            "release_date+desc", "formatType":
+            "issue,digitalcomic,collection,digitalverticalcomic", "limit":
+            10000, "offset": 0, "variants": "false"
+        }
+    )
+    issue_ids = [
+        StandardBookId("book", issue["digital_id"]) for issue in response.json()["data"]["results"]
+    ]
+
+    response = await client.get(
+        f"https://www.marvel.com/comics/series/{series_id}/"
+    )
+    soup = BeautifulSoup(response.text, "lxml")
+    header = soup.find("h1")
+    if header is None:
+        raise DataNotFound
+    title = header.get_text()
+
+    return Series(
+        title = title,
+        book_ids = issue_ids
+    )
 
 
-    async def _download_issue_metadata(self, issue_id: str) -> Metadata:
-        """
-        Download and parse metadata for issue
+async def download_issue(client: http.Client, issue_id: str) -> Book:
+    """
+    Download information about an issue from Marvel.
 
-        :param issue_id: Identifier for issue
-        :returns: Issue metadata
-        """
-        response = await self._client.get(
-            f"https://bifrost.marvel.com/v1/catalog/digital-comics/metadata/{issue_id}"
-        )
-        issue_meta = response.json()["data"]["results"][0]["issue_meta"]
-        return Metadata(
-            title = issue_meta["title"],
-            series = issue_meta.get("series_title"),
-            description = issue_meta.get("description"),
-            publisher = "Marvel",
-            release_date = date.fromisoformat(issue_meta.get("release_date_digital")),
-            authors = [c["full_name"] for c in issue_meta["creators"]["extended_list"]] if "extended_list" in issue_meta["creators"] else []
-        )
+    :param client: The authneticated http client.
+    :param issue_id: The id of the issue to download.
+    :return: Information about the issue.
+    """
+    response = await client.get(
+        f"https://bifrost.marvel.com/v1/catalog/digital-comics/metadata/{issue_id}"
+    )
+    issue_meta = response.json()["data"]["results"][0]["issue_meta"]
 
+    if "extended_list" in issue_meta["creators"]:
+        authors = [
+            c["full_name"]
+            for c in issue_meta["creators"]["extended_list"]
+        ]
+    else:
+        authors = []
 
-    async def _download_issue_pages(self, issue_id: str) -> ImageList:
-        """
-        Download list of page links for issue
+    metadata = Metadata(
+        title = issue_meta["title"],
+        series = issue_meta.get("series_title"),
+        description = issue_meta.get("description"),
+        publisher = "Marvel",
+        release_date = date.fromisoformat(issue_meta.get("release_date_digital")),
+        authors = authors,
+    )
 
-        :param issue_id: Identifier for issue
-        :returns: List of links to comic pages
-        """
-        response = await self._client.get(
-            f"https://bifrost.marvel.com/v1/catalog/digital-comics/web/assets/{issue_id}"
-        )
-        images = []
-        for page in response.json()["data"]["results"][0]["pages"]:
-            images.append(
-                OnlineFile(
-                    url = page["assets"]["source"],
-                    extension = "jpg"
-                )
+    response = await client.get(
+        f"https://bifrost.marvel.com/v1/catalog/digital-comics/web/assets/{issue_id}"
+    )
+
+    images = []
+    for page in response.json()["data"]["results"][0]["pages"]:
+        images.append(
+            OnlineFile(
+                url = page["assets"]["source"],
+                extension = "jpg"
             )
-        return ImageList(images)
+        )
+
+    return Book(
+        metadata = metadata,
+        data = ImageList(images),
+    )
+
+
+async def download(client: http.Client, id: StandardBookId[str]) -> Result:
+    if id.variant == "book":
+        return await download_issue(client, id.value)
+    else:
+        return await download_series(client, id.value)
+
+
+SOURCE = source.Source(
+    name = "Marvel",
+    url_support = source.url_matches_regex(SUPPORTED_URLS),
+    id_of_url = id_of_url,
+    download = download,
+    load_cookies = source.client_state_from_cookies,
+)

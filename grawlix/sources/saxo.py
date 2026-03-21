@@ -1,128 +1,98 @@
 from grawlix.book import Book, Metadata, SingleFile, OnlineFile
-from grawlix import AESEncryption
-from grawlix.exceptions import ThrottleError
+from grawlix import source, AESEncryption
+from grawlix.exceptions import ThrottleError, InvalidUrl
+from grawlix.utils import http, option
 
 import re
 from .source import Source
+from dataclasses import dataclass
 
-class Saxo(Source):
-    name: str = "Saxo"
-    match = [
-        r"https://(\w+\.)?saxo.(com|dk)/.+\d+$"
-    ]
-    _authentication_methods = [ "login" ]
+SUPPORTED_URLS = [
+    r"https://(\w+\.)?saxo.(com|dk)/.+\d+$"
+]
+
+
+@dataclass(slots=True)
+class State:
+    client: http.Client
     user_id: str
 
-    async def login(self, url: str, username: str, password: str) -> None:
-        response = await self._client.post(
-            "https://auth-read.saxo.com/auth/token",
-            data = {
-                "username": username,
-                "password": password,
-                "grant_type": "password",
-            },
-            headers = {
-                "Content-Type": "application/x-www-form-urlencoded"
-            }
-        )
-        json = response.json()
-        bearer_token = json["access_token"]
-        self._client.headers = {
-            "Appauthorization": f"bearer {bearer_token}",
-            "App-Os": "android",
-            "App-Version": "6.2.4"
+
+async def login(url: str, username: str, password: str) -> State:
+    client = http.create_client()
+    response = await client.post(
+        "https://auth-read.saxo.com/auth/token",
+        data = {
+            "username": username,
+            "password": password,
+            "grant_type": "password",
+        },
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"
         }
-        self.user_id = json["id"]
+    )
+    json = response.json()
+    bearer_token = json["access_token"]
+    client.headers = {
+        "Appauthorization": f"bearer {bearer_token}",
+        "App-Os": "android",
+        "App-Version": "6.2.4"
+    }
+    user_id = json["id"]
+    return State(client, user_id)
 
 
-    async def download(self, url: str) -> Book:
-        isbn = self._extract_isbn_from_url(url)
-        book_id = await self._get_book_id(isbn)
-        metadata = await self._get_book_metadata(book_id)
-        ebook_id = metadata["id"] # Id of ebook file
-        return Book(
-            metadata = self._extract_metadata(metadata),
-            data = SingleFile(
-                OnlineFile(
-                    url = await self._get_book_file_link(ebook_id),
-                    extension = "epub",
-                    # Encryption keys extracted from app
-                    encryption = AESEncryption(
-                        key = b"CD3E9D141D8EFC0886912E7A8F3652C4",
-                        iv = b"78CB354D377772F1"
-                    )
+async def id_of_url(state: State, url: str) -> str:
+    isbn_match = re.search(r"\d+$", url)
+    if not isbn_match or not isbn_match.group():
+        raise InvalidUrl
+    isbn = isbn_match.group()
+
+    response = await state.client.get(
+        f"https://api-read.saxo.com/api/v2/search/user/{state.user_id}/premium/books/{isbn}"
+    )
+    return response.json()["items"][0]["bookId"]
+
+
+async def download(state: State, book_id: str) -> Book:
+    response = await state.client.get(
+        f"https://api-read.saxo.com/api/v2/book/{book_id}/user/{state.user_id}/details"
+    )
+    metadata = response.json()["ebooks"][0]
+    ebook_id = metadata["id"]
+
+    response = await state.client.get(
+        f"https://api-read.saxo.com/api/v1/book/{ebook_id}/content/encryptedstream/"
+    )
+    json = response.json()
+    if not "link" in json:
+        raise ThrottleError
+    url = json["link"]
+
+    return Book(
+        metadata = Metadata(
+            title = metadata["title"],
+            authors = option.to_list(metadata.get("author")),
+            language = metadata.get("languageLocalized")
+        ),
+        data = SingleFile(
+            OnlineFile(
+                url = url,
+                extension = "epub",
+                # Encryption keys extracted from app
+                encryption = AESEncryption(
+                    key = b"CD3E9D141D8EFC0886912E7A8F3652C4",
+                    iv = b"78CB354D377772F1"
                 )
             )
         )
+    )
 
 
-    async def _get_book_id(self, isbn: str) -> str:
-        """
-        Download internal book id of book from isbn
-
-        :param isbn: Isbn of book
-        :returns: Saxo internal book id
-        """
-        response = await self._client.get(
-            f"https://api-read.saxo.com/api/v2/search/user/{self.user_id}/premium/books/{isbn}"
-        )
-        return response.json()["items"][0]["bookId"]
-
-
-    async def _get_book_metadata(self, book_id: str) -> dict:
-        """
-        Download metadata of book
-
-        :param book_id: Id of book
-        :returns: Metadata of book
-        """
-        response = await self._client.get(
-            f"https://api-read.saxo.com/api/v2/book/{book_id}/user/{self.user_id}/details"
-        )
-        return response.json()["ebooks"][0]
-
-
-    async def _get_book_file_link(self, ebook_id: str) -> str:
-        """
-        Download link to epub file
-
-        :param ebook_id: Id of ebook file
-        :returns: Link to ebook file
-        :raises ThrottleError: If there have been too many downloads
-        """
-        response = await self._client.get(
-            f"https://api-read.saxo.com/api/v1/book/{ebook_id}/content/encryptedstream/"
-        )
-        json = response.json()
-        if not "link" in json:
-            raise ThrottleError
-        return json["link"]
-
-
-    @staticmethod
-    def _extract_metadata(metadata: dict) -> Metadata:
-        """
-        Extract metadata from metadata response from Saxo
-
-        :param metadata: Metadata response from saxo
-        :returns: Metadata formatted as `grawlix.Metadata`
-        """
-        return Metadata(
-            title = metadata["title"],
-            authors = [metadata["author"]] if "author" in metadata else [],
-            language = metadata.get("languageLocalized")
-        )
-
-
-    @staticmethod
-    def _extract_isbn_from_url(url: str) -> str:
-        """
-        Extracts isbn from url
-
-        :param url: Url of book
-        :returns: Isbn of book
-        """
-        isbn_match = re.search(f"\d+$", url)
-        if isbn_match and isbn_match.group():
-            return isbn_match.group()
-        raise NotImplemented
+SOURCE = source.Source(
+    name = "Saxo",
+    url_support = source.url_matches_regex(SUPPORTED_URLS),
+    id_of_url = id_of_url,
+    download = download,
+    login = login,
+)

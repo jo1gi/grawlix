@@ -1,163 +1,146 @@
-from grawlix import logging
-from grawlix.book import Result, Book, Metadata, OnlineFile, ImageList, Series
+from grawlix import logging, source
+from grawlix.book import Result, Book, Metadata, OnlineFile, ImageList, Series, StandardBookId
 from grawlix.encryption import Encryption
-from grawlix.exceptions import InvalidUrl, AccessDenied
+from grawlix.exceptions import InvalidUrl, AccessDenied, SourceNotAuthenticated
+from grawlix.utils import http
 from .source import Source
 
 import re
-from typing import Tuple, List
+from typing import Tuple, List, TypeAlias
 from hashlib import sha256
 from Crypto.Cipher import AES
 
-class DcUniverseInfinite(Source):
-    name = "DC Universe Infinite"
-    match: list[str] = [
-        # Reader page
-        r"https://www.dcuniverseinfinite.com/comics/book/[^/]+/[^/]+/c/reader",
-        # Issue info page
-        r"https://www.dcuniverseinfinite.com/comics/book/[^/]+/[^/]+/c",
-        r"https://www.dcuniverseinfinite.com/comics/book/-/[^/]",
-        # Series info page
-        r"https://www.dcuniverseinfinite.com/comics/series/[^/]+/[^/]+"
-    ]
-    _authentication_methods = [ "cookies", "login" ]
-
-    async def set_headers(self, auth_token: str) -> None:
-        self._client.headers.update({
-            "Authorization": f"Token {auth_token}",
-            "X-Consumer-Key": await self.download_consumer_secret()
-        })
+SUPPORTED_URLS = [
+    # Reader page
+    r"https://www.dcuniverseinfinite.com/comics/book/[^/]+/[^/]+/c/reader",
+    # Issue info page
+    r"https://www.dcuniverseinfinite.com/comics/book/[^/]+/[^/]+/c",
+    r"https://www.dcuniverseinfinite.com/comics/book/-/[^/]",
+    # Series info page
+    r"https://www.dcuniverseinfinite.com/comics/series/[^/]+/[^/]+"
+]
 
 
-    async def login(self, url: str, username: str, password: str) -> None:
-        await self.set_headers(password)
+async def authenticate_client(client: http.Client, auth_token: str):
+    """
+    Authenticate the client using a authorization token.
+
+    :param client: The client to authenticate.
+    :param auth_token: The authorization token.
+    """
+    response = await client.get(
+        "https://www.dcuniverseinfinite.com/api/5/consumer/www?trans=en"
+    )
+    consumer_secret = response.json()["consumer_secret"]
+
+    client.headers.update({
+        "Authorization": f"Token {auth_token}",
+        "X-Consumer-Key": consumer_secret,
+    })
 
 
-    async def download(self, url: str) -> Result:
-        # Set headers
-        auth_token = self._client.cookies.get("session")
-        if auth_token is not None:
-            await self.set_headers(auth_token)
-        # Download book
-        typ, id = self.extract_id_from_url(url)
-        if typ == "book":
-            logging.debug(f"Book id: {id}")
-            return await self.download_book_from_id(id)
-        else:
-            logging.debug(f"Series id: {id}")
-            return await self.download_series(id)
+async def login(url: str, username: str, auth_token: str) -> http.Client:
+    client = http.create_client()
+    await authenticate_client(client, auth_token)
+    return client
 
 
-    async def download_series(self, series_id: str) -> Series[str]:
-        # TODO Check for ultra releases
-        response = await self._client.get(
-            f"https://www.dcuniverseinfinite.com/api/comics/1/series/{series_id}/?trans=en"
-        )
-        content = response.json()
-        return Series(
-            title = content["title"],
-            book_ids = [x for x in content["book_uuids"]["issue"]]
-        )
+async def load_cookies(cookie_file: str) -> http.Client:
+    client = http.create_client()
+    http.load_cookies(client, cookie_file)
+    auth_token = client.cookies.get("session")
+    if auth_token is None:
+        raise SourceNotAuthenticated
+    await authenticate_client(client, auth_token)
+    return client
 
 
-    async def download_book_from_id(self, book_id: str) -> Book:
-        return Book(
-            data = await self.download_pages(book_id),
-            metadata = await self.download_book_metadata(book_id)
-        )
+async def id_of_url(client: http.Client, url: str) -> StandardBookId[str]:
+    if re.match(SUPPORTED_URLS[0], url):
+        book_id = url.split("/")[-3]
+        return StandardBookId("book", book_id)
+    if re.match(SUPPORTED_URLS[1], url):
+        book_id = url.split("/")[-2]
+        return StandardBookId("book", book_id)
+    if re.match(SUPPORTED_URLS[2], url):
+        book_id = url.split("/")[-1]
+        return StandardBookId("book", book_id)
+    if re.match(SUPPORTED_URLS[3], url):
+        series_id = url.split("/")[-1]
+        return StandardBookId("series", series_id)
+    raise InvalidUrl
 
 
-    async def download_pages(self, book_id: str) -> ImageList:
-        """
-        Download comic pages
-
-        :param book_id: Id of comic
-        :return: List of comic pages
-        """
-        response = await self._client.get(
-            f"https://www.dcuniverseinfinite.com/api/5/1/rights/comic/{book_id}?trans=en"
-        )
-        jwt = response.json()
-        response = await self._client.get(
-            "https://www.dcuniverseinfinite.com/api/comics/1/book/download/?page=1&quality=HD&trans=en",
-            headers = {
-                "X-Auth-JWT": jwt
-            }
-        )
-        response = response.json()
-        if not "uuid" in response:
-            raise AccessDenied
-        uuid = response["uuid"]
-        job_id = response["job_id"]
-        format_id = response["format"]
-        images: List[OnlineFile] = []
-        for page in response["images"]:
-            page_number = page["page_number"]
-            images.append(OnlineFile(
-                url = page["signed_url"],
-                extension = "jpg",
-                encryption = DcUniverseInfiniteEncryption(uuid, page_number, job_id, format_id)
-            ))
-        return ImageList(images)
+async def download_series(client: http.Client, series_id: str) -> Series:
+    # TODO Check for ultra releases
+    response = await client.get(
+        f"https://www.dcuniverseinfinite.com/api/comics/1/series/{series_id}/?trans=en"
+    )
+    content = response.json()
+    return Series(
+        title = content["title"],
+        book_ids = [StandardBookId("book", x) for x in content["book_uuids"]["issue"]]
+    )
 
 
-    async def download_book_metadata(self, book_id: str) -> Metadata:
-        """
-        Download book metadata
+async def download_issue(client: http.Client, issue_id: str) -> Book:
+    response = await client.get(
+        f"https://www.dcuniverseinfinite.com/api/5/1/rights/comic/{issue_id}?trans=en"
+    )
+    jwt = response.json()
+    response = await client.get(
+        "https://www.dcuniverseinfinite.com/api/comics/1/book/download/?page=1&quality=HD&trans=en",
+        headers = {
+            "X-Auth-JWT": jwt
+        }
+    )
+    response = response.json()
+    if not "uuid" in response:
+        raise AccessDenied
+    uuid = response["uuid"]
+    job_id = response["job_id"]
+    format_id = response["format"]
+    images: List[OnlineFile] = []
+    for page in response["images"]:
+        page_number = page["page_number"]
+        images.append(OnlineFile(
+            url = page["signed_url"],
+            extension = "jpg",
+            encryption = DcUniverseInfiniteEncryption(uuid, page_number, job_id, format_id)
+        ))
 
-        :param book_id: Id of book
-        :return: Book metadata
-        """
-        response = await self._client.get(
-            f"https://www.dcuniverseinfinite.com/api/comics/1/book/{book_id}/?trans=en"
-        )
-        content = response.json()
-        return Metadata(
-            title = content["title"],
-            series = content["series_title"],
-            index = int(content["issue_number"]),
+    response = await client.get(
+        f"https://www.dcuniverseinfinite.com/api/comics/1/book/{issue_id}/?trans=en"
+    )
+    metadata = response.json()
+
+    return Book(
+        data = ImageList(images),
+        metadata = Metadata(
+            title = metadata["title"],
+            series = metadata["series_title"],
+            index = int(metadata["issue_number"]),
             publisher = "DC"
         )
+    )
 
 
-    def extract_id_from_url(self, url: str) -> Tuple[str, str]:
-        """
-        Extract book or series id from url
-
-        :param url: Url of page with id
-        :return: Type (book or series) and id
-        """
-        match_index = self.get_match_index(url)
-        if match_index == 0:
-            book_id = url.split("/")[-3]
-            return ("book", book_id)
-        if match_index == 1:
-            book_id = url.split("/")[-2]
-            return ("book", book_id)
-        if match_index == 2:
-            book_id = url.split("/")[-1]
-            return ("book", book_id)
-        if match_index == 3:
-            series_id = url.split("/")[-1]
-            return ("series", series_id)
-        raise InvalidUrl
+async def download(client: http.Client, id: StandardBookId[str]) -> Result:
+    if id.variant == "book":
+        return await download_issue(client, id.value)
+    else:
+        return await download_series(client, id.value)
 
 
-    async def download_consumer_secret(self) -> str:
-        """Download consumer secret"""
-        response = await self._client.get(
-            "https://www.dcuniverseinfinite.com/api/5/consumer/www?trans=en"
-        )
-        return response.json()["consumer_secret"]
 
-
-    async def download_plan(self) -> str:
-        """Download user subscription plan"""
-        response = await self._client.get(
-            "https://www.dcuniverseinfinite.com/api/claims/?trans=en"
-        )
-        logging.debug(f"{response.json()["data"]}")
-        return response.json()["data"]["urn:df:clm:premium"]["plan"]
+SOURCE = source.Source(
+    name = "DC Universe Infinite",
+    url_support = source.url_matches_regex(SUPPORTED_URLS),
+    id_of_url = id_of_url,
+    download = download,
+    login = login,
+    load_cookies = load_cookies,
+)
 
 
 class DcUniverseInfiniteEncryption:

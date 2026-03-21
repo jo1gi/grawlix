@@ -1,7 +1,8 @@
+from grawlix import source
 from .book import Book, Series
 from .config import load_config, Config, SourceConfig
 from .exceptions import SourceNotAuthenticated, GrawlixError, AccessDenied
-from .sources import load_source, Source
+from .sources import find_source
 from .output import download_book
 from . import  arguments, logging
 
@@ -20,7 +21,7 @@ def get_or_ask(attr: str, hidden: bool, source_config: Optional[SourceConfig], o
     or Prompt.ask(attr.capitalize(), password=hidden)
 
 
-def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
+def get_login(source_name: str, config: Config, options) -> Tuple[str, str]:
     """
     Get login credentials for source
 
@@ -29,7 +30,7 @@ def get_login(source: Source, config: Config, options) -> Tuple[str, str]:
     :param options: Command line options
     :returns: Login credentials
     """
-    source_name = source.name.lower().replace(" ", "")
+    source_name = source_name.lower().replace(" ", "")
     source_config = config.sources.get(source_name)
 
     username = get_or_ask("username", False, source_config, options)
@@ -71,27 +72,32 @@ def get_cookie_file(options) -> Optional[str]:
     return None
 
 
-async def authenticate(url: str, source: Source, config: Config, options):
+async def instanciate(url: str, definition: source.Source, config: Config, options):
     """
-    Authenticate with source
+    Create an instance of the source. This usually requires logging in or
+    loading cookies.
 
     :param url: The url of the book currently being downloaded
     :param source: Source to authenticate
     :param config: Content of config file
     :param options: Command line options
     """
-    logging.info(f"Authenticating with source [magenta]{source.name}[/]")
-    if source.supports_login:
-        username, password = get_login(source, config, options)
-        await source.login(url, username, password)
-        source.authenticated = True
-    if not source.authenticated and source.supports_cookies:
+    logging.info(f"Authenticating with source [magenta]{definition.name}[/]")
+    if definition.login is not None:
+        username, password = get_login(definition.name, config, options)
+        state = await definition.login(url, username, password)
+        return source.Instance(definition, state)
+
+    if definition.load_cookies is not None:
         cookie_file = get_cookie_file(options)
         if cookie_file:
-            source.load_cookies(cookie_file)
-            source.authenticated = True
-    if not source.authenticated:
-        raise SourceNotAuthenticated
+            state = await definition.load_cookies(cookie_file)
+            return source.Instance(definition, state)
+
+    if definition.instanciate_without_login is not None:
+        state = await definition.instanciate_without_login(url)
+        return source.Instance(definition, state)
+    raise SourceNotAuthenticated
 
 
 async def main() -> None:
@@ -101,16 +107,18 @@ async def main() -> None:
     urls = get_urls(args)
     for url in urls:
         try:
-            source: Source = load_source(url)
-            if not source.authenticated and source.requires_authentication:
-                await authenticate(url, source, config, args)
-            result = await source.download(url)
+            definition: source.Source = find_source(url)
+            instance: source.Instance = await instanciate(url, definition, config, args)
+            logging.debug(f"Finding id of {url}")
+            id = await definition.id_of_url(instance.state, url)
+            logging.debug(f"{id=}")
+            result = await definition.download(instance.state, id)
             if isinstance(result, Book):
-                with logging.progress(result.metadata.title, source.name) as progress:
+                with logging.progress(result.metadata.title, definition.name) as progress:
                     template: str = args.output or "{title}.{ext}"
                     await download_with_progress(result, progress, template)
             elif isinstance(result, Series):
-                await download_series(source, result, args)
+                await download_series(instance, result, args)
             logging.info("")
         except GrawlixError as error:
             error.print_error()
@@ -119,17 +127,17 @@ async def main() -> None:
             exit(1)
 
 
-async def download_series(source: Source, series: Series, args) -> None:
+async def download_series(instance: source.Instance, series: Series, args) -> None:
     """
     Download books in series
 
     :param series: Series to download
     """
     template = args.output or "{series}/{title}.{ext}"
-    with logging.progress(series.title, source.name, len(series.book_ids)) as progress:
+    with logging.progress(series.title, instance.source.name, len(series.book_ids)) as progress:
         for book_id in series.book_ids:
             try:
-                book: Book = await source.download_book_from_id(book_id)
+                book = await instance.download(book_id)
                 await download_with_progress(book, progress, template)
             except AccessDenied as error:
                 logging.info("Skipping - Access Denied")

@@ -1,115 +1,96 @@
 from grawlix.book import Book, SingleFile, Metadata, OfflineFile
-from grawlix.exceptions import DataNotFound
-from grawlix import logging
-from .source import Source
+from grawlix.exceptions import DataNotFound, AccessDenied, SourceNotAuthenticated
+from grawlix import logging, source
+from grawlix.utils import http, option
 
+from typing import TypeAlias
 import random
 import string
 from bs4 import BeautifulSoup
 import asyncio
 import json
 
-class InternetArchive(Source):
-    name: str = "Internet Archive"
-    match: list[str] = [
-        r"https://archive.org/details/.+"
-    ]
-    _authentication_methods = [ "login", "cookies" ]
+Id: TypeAlias = str
+State: TypeAlias = http.Client
 
-    @staticmethod
-    def _format_data(content_type: str, fields):
-        data = ""
-        for name, value in fields.items():
-            data += f"--{content_type}\x0d\x0aContent-Disposition: form-data; name=\"{name}\"\x0d\x0a\x0d\x0a{value}\x0d\x0a"
-        data += content_type+"--"
-        return data
+SUPPORTED_URLS: list[str] = [
+    r"https://archive.org/details/.+"
+]
 
 
-    async def login(self, url: str, username: str, password: str) -> None:
-        await self._client.get("https://archive.org/account/login")
-        content_type = "----WebKitFormBoundary"+"".join(random.sample(string.ascii_letters + string.digits, 16))
-        headers = {'Content-Type': 'multipart/form-data; boundary='+content_type}
-        data = self._format_data(content_type, {"username":username, "password":password, "submit_by_js":"true"})
-        response = await self._client.post(
-            "https://archive.org/account/login",
-            data=data,
-            headers=headers
-        )
-        if not "Successful login" in response.text:
-            print("Failed login")
-            exit(1)
+async def id_of_url(client: http.Client, url: str) -> Id:
+    book_id = url.split("/")[4]
+    return book_id
 
 
-    async def _download_acsm(self, book_id: str) -> bytes:
-        """
-        Loan book on archive.org and download acsm file
-
-        :param book_id: Id of book
-        """
-        await self._client.post(
-            "https://archive.org/services/loans/loan/searchInside.php",
-            data = {
-                "action": "grant_access",
-                "identifier": book_id
-            }
-        )
-        await self._client.post(
-            "https://archive.org/services/loans/loan/",
-            data = {
-                "action": "browse_book",
-                "identifier": book_id
-            }
-        )
-        # TODO: Error handling
-        await self._client.post(
-            "https://archive.org/services/loans/loan/",
-            data = {
-                "action": "create_token",
-                "identifier": book_id
-            }
-        )
-        acsm_response = await self._client.get(
-            f"https://archive.org/services/loans/loan/?action=media_url&identifier={book_id}&format=pdf&redirect=1",
-            follow_redirects = True
-        )
-        return acsm_response.content
+async def download_acsm(client: State, book_id: Id) -> bytes:
+    await client.post(
+        "https://archive.org/services/loans/loan/searchInside.php",
+        data = {
+            "action": "grant_access",
+            "identifier": book_id
+        }
+    )
+    await client.post(
+        "https://archive.org/services/loans/loan/",
+        data = {
+            "action": "browse_book",
+            "identifier": book_id
+        }
+    )
+    # TODO: Error handling
+    await client.post(
+        "https://archive.org/services/loans/loan/",
+        data = {
+            "action": "create_token",
+            "identifier": book_id
+        }
+    )
+    acsm_response = await client.get(
+        f"https://archive.org/services/loans/loan/?action=media_url&identifier={book_id}&format=pdf&redirect=1",
+        follow_redirects = True
+    )
+    return acsm_response.content
 
 
-    async def download(self, url: str) -> Book:
-        book_id = url.split("/")[4]
-        metadata, acsm_file = await asyncio.gather(
-            self._download_metadata(book_id),
-            self._download_acsm(book_id)
-        )
-        return Book(
-            data = SingleFile(
-                OfflineFile(
-                    content = acsm_file,
-                    extension = "acsm",
-                )
-            ),
-            metadata = Metadata(
-                title = metadata["title"],
-                authors = [ metadata.get("creator") ] if "creator" in metadata else []
+async def download_metadata(state: State, book_id: Id) -> dict:
+    page_response = await state.get(
+        f"https://archive.org/details/{book_id}"
+    )
+    soup = BeautifulSoup(page_response.text, "lxml")
+    reader_data = json.loads(soup.find(class_="js-bookreader").get("value"))
+    metadata_url = f"https:{reader_data['url']}"
+    logging.debug(f"{metadata_url=}")
+    metadata_response = await state.get(
+        metadata_url
+    )
+    return metadata_response.json()["data"]["metadata"]
+
+
+async def download(client: http.Client, book_id: Id) -> Book:
+    metadata, acsm_file = await asyncio.gather(
+        download_metadata(client, book_id),
+        download_acsm(client, book_id)
+    )
+    return Book(
+        data = SingleFile(
+            OfflineFile(
+                content = acsm_file,
+                extension = "acsm",
             )
+        ),
+        metadata = Metadata(
+            title = metadata["title"],
+            authors = option.to_list(metadata.get("creator")),
         )
+    )
+    pass
 
 
-    async def _download_metadata(self, book_id: str) -> dict:
-        """
-        Download metadata for book
-
-        :param book_id: Id of book
-        :returns: Dictionary with metadata
-        """
-        page_response = await self._client.get(
-            f"https://archive.org/details/{book_id}"
-        )
-        soup = BeautifulSoup(page_response.text, "lxml")
-        reader_data = json.loads(soup.find(class_="js-bookreader").get("value"))
-        metadata_url = f"https:{reader_data['url']}"
-        logging.debug(f"{metadata_url=}")
-        metadata_response = await self._client.get(
-            metadata_url
-        )
-        return metadata_response.json()["data"]["metadata"]
+SOURCE = source.Source(
+    name = "Internet Archive",
+    url_support = source.url_matches_regex(SUPPORTED_URLS),
+    id_of_url = id_of_url,
+    download = download,
+    load_cookies = source.client_state_from_cookies,
+)

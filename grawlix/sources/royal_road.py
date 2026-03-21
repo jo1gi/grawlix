@@ -1,45 +1,60 @@
 from .source import Source
+from grawlix import source
 from grawlix.book import Book, HtmlFile, HtmlFiles, OnlineFile, Metadata
+from grawlix.utils import http
 
 from bs4 import BeautifulSoup
 
-class RoyalRoad(Source):
-    name: str = "Royal Road"
-    match = [
-        r"https://www.royalroad.com/fiction/\d+/[^/]+"
-    ]
-    _authentication_methods: list[str] = []
+SUPPORTED_URLS = [
+    r"https://www.royalroad.com/fiction/\d+/[^/]+"
+]
+
+async def instanciate(url: str) -> http.Client:
+    return http.create_client()
 
 
-    async def download(self, url: str) -> Book:
-        response = await self._client.get(url)
-        soup = BeautifulSoup(response.text, "lxml")
-        chapters = []
-        for chapter in soup.find_all("tr", class_="chapter-row"):
-            chapters.append(
-                HtmlFile(
-                    title = chapter.find("a").text.strip(),
-                    file = OnlineFile(
-                        url = f"https://royalroad.com{chapter.get('data-url')}",
-                        extension = "html"
-                    ),
-                    selector = { "class": "chapter-content" }
-                )
-            )
-        return Book(
-            data = HtmlFiles(
-                cover = OnlineFile(
-                    url = soup.find("div", class_="cover-art-container") \
-                        .find("img") \
-                        .get("src") \
-                        .replace("full", "large"),
-                    extension = "jpg"
+async def id_of_url(client: http.Client, url: str) -> str:
+    return url
+
+
+async def download(client: http.Client, url: str) -> Book:
+    response = await client.get(url)
+    soup = BeautifulSoup(response.text, "lxml")
+    chapters = []
+    for chapter in soup.find_all("tr", class_="chapter-row"):
+        chapters.append(
+            HtmlFile(
+                title = chapter.find("a").text.strip(),
+                file = OnlineFile(
+                    url = f"https://royalroad.com{chapter.get('data-url')}",
+                    extension = "html"
                 ),
-                htmlfiles = chapters
-            ),
-            metadata = Metadata(
-                title = soup.find("meta", attrs={"name":"twitter:title"}).get("content"),
-                authors = [ soup.find("meta", attrs={"name":"twitter:creator"}).get("content") ]
-            ),
-            overwrite = True
+                selector = { "class": "chapter-content" }
+            )
         )
+    return Book(
+        data = HtmlFiles(
+            cover = OnlineFile(
+                url = soup.find("div", class_="cover-art-container") \
+                    .find("img") \
+                    .get("src") \
+                    .replace("full", "large"),
+                extension = "jpg"
+            ),
+            htmlfiles = chapters
+        ),
+        metadata = Metadata(
+            title = soup.find("meta", attrs={"name":"twitter:title"}).get("content"),
+            authors = [ soup.find("meta", attrs={"name":"twitter:creator"}).get("content") ]
+        ),
+        overwrite = True
+    )
+
+
+SOURCE = source.Source(
+    name = "Royal Road",
+    url_support = source.url_matches_regex(SUPPORTED_URLS),
+    id_of_url = id_of_url,
+    download = download,
+    instanciate_without_login = instanciate,
+)

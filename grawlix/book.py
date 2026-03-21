@@ -1,6 +1,6 @@
 from grawlix import Encryption
 from dataclasses import dataclass, field
-from typing import Optional, Union, TypeVar, Generic, Any
+from typing import Optional, Union, TypeVar, Generic, Any, Literal
 from datetime import date
 
 @dataclass(slots=True)
@@ -39,12 +39,14 @@ class OnlineFile:
     headers: Optional[dict[str, str]] = None
     cookies: Optional[Any] = None # TODO Change type
 
+
 @dataclass(slots=True)
 class OfflineFile:
     """Stores content of a file"""
     content: bytes
     extension: str
     encryption: Optional[Encryption] = None
+
 
 File = Union[OnlineFile, OfflineFile]
 
@@ -79,10 +81,12 @@ class HtmlFile:
     file: OnlineFile
     selector: Optional[dict[str, str]]
 
+
 @dataclass(slots=True)
 class HtmlFiles:
     htmlfiles: list[HtmlFile]
     cover: Optional[OnlineFile] = None
+
 
 BookData = Union[
     EpubInParts,
@@ -90,6 +94,7 @@ BookData = Union[
     ImageList,
     HtmlFiles
 ]
+
 
 @dataclass(slots=True)
 class Book:
@@ -100,13 +105,24 @@ class Book:
 
 T = TypeVar("T")
 
+
 @dataclass(slots=True)
 class Series(Generic[T]):
     """Stores a series of books"""
     title: str
     book_ids: list[T]
 
+
 Result = Union[
     Book,
     Series[T]
 ]
+
+
+@dataclass(slots=True)
+class StandardBookId[T]:
+    """
+    A book id wih two variants: "book" and "series".
+    """
+    variant: Literal["series", "book"]
+    value: T

@@ -1,72 +1,37 @@
+from . import dcuniverseinfinite, ereolen, fanfictionnet, flipp, \
+    internet_archive, mangaplus, marvel, nextory, royal_road, saxo, storytel, \
+    webtoons
+
+from grawlix import source
 from grawlix.exceptions import InvalidUrl
-
-from .source import Source
-from .dcuniverseinfinite import DcUniverseInfinite
-from .ereolen import Ereolen
-from .fanfictionnet import FanfictionNet
-from .flipp import Flipp
-from .internet_archive import InternetArchive
-from .mangaplus import MangaPlus
-from .marvel import Marvel
-from .nextory import Nextory
-from .royal_road import RoyalRoad
-from .saxo import Saxo
-from .storytel import Storytel
-from .webtoons import Webtoons
-
-import re
-
-source_cache: dict[str, Source] = {}
-
-def load_source(url: str) -> Source:
-    """
-    Find source that matches url
-    Will save loaded sources in cache
-
-    :param url: Url of book to download
-    :returns: Source type for downloading url
-    """
-    source_cls = find_source(url)
-    source_name = source_cls.name
-    if source_name in source_cache:
-        return source_cache[source_name]
-    else:
-        source = source_cls()
-        source_cache[source_name] = source
-        return source
+from grawlix.source import UrlSupport
 
 
-def find_source(url: str) -> type[Source]:
+SOURCES: list[source.Source] = [
+    dcuniverseinfinite.SOURCE,
+    ereolen.SOURCE,
+    fanfictionnet.SOURCE,
+    flipp.SOURCE,
+    internet_archive.SOURCE,
+    mangaplus.SOURCE,
+    marvel.SOURCE,
+    nextory.SOURCE,
+    royal_road.SOURCE,
+    saxo.SOURCE,
+    storytel.SOURCE,
+    webtoons.SOURCE,
+]
+
+
+def find_source(url: str) -> source.Source:
     """
     Find source that matches url
 
     :param url: Url of book to download
     :returns: Source type for downloading url
     """
-    for cls in get_source_classes():
-        for num, match in enumerate(cls.match):
-            if re.match(match, url):
-                return cls
+    for definition in SOURCES:
+        support = definition.url_support(url)
+        if support == UrlSupport.SupportedUrl:
+            return definition
     raise InvalidUrl
-
-
-def get_source_classes() -> list[type[Source]]:
-    """
-    Get all source types
-
-    :returns: A list of all available source types
-    """
-    return [
-        DcUniverseInfinite,
-        Ereolen,
-        FanfictionNet,
-        Flipp,
-        InternetArchive,
-        MangaPlus,
-        Marvel,
-        Nextory,
-        RoyalRoad,
-        Saxo,
-        Storytel,
-        Webtoons
-    ]
