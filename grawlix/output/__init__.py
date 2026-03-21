@@ -44,7 +44,7 @@ def format_output_location(book: Book, output_format: OutputFormat, template: st
     :param template: Template for output path
     :returns: Output path
     """
-    values = { key: remove_unwanted_chars(value) for key, value in book.metadata.as_dict().items() }
+    values = { key: remove_unwanted_chars(str(value)) for key, value in book.metadata.as_dict().items() }
     path = template.format(**values, ext = output_format.extension)
     return path
 

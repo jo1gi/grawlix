@@ -16,21 +16,28 @@ class DcUniverseInfinite(Source):
         r"https://www.dcuniverseinfinite.com/comics/book/[^/]+/[^/]+/c/reader",
         # Issue info page
         r"https://www.dcuniverseinfinite.com/comics/book/[^/]+/[^/]+/c",
+        r"https://www.dcuniverseinfinite.com/comics/book/-/[^/]",
         # Series info page
         r"https://www.dcuniverseinfinite.com/comics/series/[^/]+/[^/]+"
     ]
-    _authentication_methods = [ "cookies" ]
+    _authentication_methods = [ "cookies", "login" ]
+
+    async def set_headers(self, auth_token: str) -> None:
+        self._client.headers.update({
+            "Authorization": f"Token {auth_token}",
+            "X-Consumer-Key": await self.download_consumer_secret()
+        })
+
+
+    async def login(self, url: str, username: str, password: str) -> None:
+        await self.set_headers(password)
 
 
     async def download(self, url: str) -> Result:
         # Set headers
         auth_token = self._client.cookies.get("session")
-        self._client.headers.update({
-            "Authorization": f"Token {auth_token}",
-            "X-Consumer-Key": await self.download_consumer_secret()
-        })
-        self.plan = await self.download_plan()
-        logging.debug(f"{self.plan=}")
+        if auth_token is not None:
+            await self.set_headers(auth_token)
         # Download book
         typ, id = self.extract_id_from_url(url)
         if typ == "book":
@@ -128,6 +135,9 @@ class DcUniverseInfinite(Source):
             book_id = url.split("/")[-2]
             return ("book", book_id)
         if match_index == 2:
+            book_id = url.split("/")[-1]
+            return ("book", book_id)
+        if match_index == 3:
             series_id = url.split("/")[-1]
             return ("series", series_id)
         raise InvalidUrl
@@ -146,10 +156,19 @@ class DcUniverseInfinite(Source):
         response = await self._client.get(
             "https://www.dcuniverseinfinite.com/api/claims/?trans=en"
         )
+        logging.debug(f"{response.json()["data"]}")
         return response.json()["data"]["urn:df:clm:premium"]["plan"]
 
 
 class DcUniverseInfiniteEncryption:
+    """
+    DC Universe Infinite encryption scheme.
+
+    It uses AES-CBC with extra data at the start of the file indicating the
+    length and the iv.
+
+    The key is generated from metadata about the book.
+    """
     key: bytes
 
     def __init__(self, uuid: str, page_number: int, job_id: str, format_id: str):
