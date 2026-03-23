@@ -88,6 +88,8 @@ async def download_issue(client: http.Client, issue_id: str) -> Book:
         f"https://www.dcuniverseinfinite.com/api/5/1/rights/comic/{issue_id}?trans=en"
     )
     jwt = response.json()
+    if type(jwt) is not str:
+        raise AccessDenied
     response = await client.get(
         "https://www.dcuniverseinfinite.com/api/comics/1/book/download/?page=1&quality=HD&trans=en",
         headers = {

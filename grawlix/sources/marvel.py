@@ -52,7 +52,8 @@ async def download_series(client: http.Client, series_id: str) -> Series:
             "release_date+desc", "formatType":
             "issue,digitalcomic,collection,digitalverticalcomic", "limit":
             10000, "offset": 0, "variants": "false"
-        }
+        },
+        timeout = 20.,
     )
     issue_ids = [
         StandardBookId("book", issue["digital_id"]) for issue in response.json()["data"]["results"]

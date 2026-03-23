@@ -1,5 +1,5 @@
 {
-  description = "Forgotten Robot";
+  description = "grawlix";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

@@ -1,5 +1,5 @@
 from Crypto.Cipher import AES
-from typing import Union, Protocol
+from typing import Protocol
 from dataclasses import dataclass
 
 
