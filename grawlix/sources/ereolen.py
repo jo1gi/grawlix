@@ -1,7 +1,7 @@
-from grawlix.book import Result, Book, SingleFile, Metadata, OnlineFile
+from grawlix.book import Result, Book, Metadata
 from grawlix.encryption import AESCTREncryption
 from grawlix.exceptions import InvalidUrl, DataNotFound
-from grawlix.utils import get_arg_from_url
+from grawlix.utils import blob, get_arg_from_url
 from grawlix import logging, source, utils
 from .source import Source
 
@@ -89,15 +89,13 @@ async def download(state: State, book_id: str) -> Result:
     metadata = metadata_response.json()
     key = decrypt_key(metadata["key"])
     return Book(
-        data = SingleFile(
-            OnlineFile(
-                url = f"https://bookstreaming.pubhub.dk/v1/order/file/{book_id}",
-                extension = "epub",
-                encryption = AESCTREncryption(
-                    key,
-                    nonce = bytes([0,0,0,0,0,0,0,0]),
-                    initial_value = bytes([0,0,0,0,0,0,0,0])
-                )
+        data = blob.request(
+            url = f"https://bookstreaming.pubhub.dk/v1/order/file/{book_id}",
+            format = blob.Format.Epub,
+            encryption = AESCTREncryption(
+                key,
+                nonce = bytes([0,0,0,0,0,0,0,0]),
+                initial_value = bytes([0,0,0,0,0,0,0,0])
             )
         ),
         metadata = Metadata(

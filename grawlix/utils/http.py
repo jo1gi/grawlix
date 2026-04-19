@@ -1,8 +1,20 @@
-from typing import TypeAlias
-import httpx
+from grawlix import encryption
+
 from http.cookiejar import MozillaCookieJar
+from typing import TypeAlias, Optional, Callable, Any, Literal
+from dataclasses import dataclass
+import httpx
 
 Client: TypeAlias = httpx.AsyncClient
+Update = Optional[Callable[[float], None]]
+
+@dataclass(slots=True)
+class Request:
+    method: Literal["GET", "POST"]
+    url: str
+    headers: dict[str, str] | None = None
+    cookies: Any = None
+    follow_redirects: bool = True
 
 
 def create_client() -> Client:
@@ -24,3 +36,27 @@ def load_cookies(client: Client, cookie_file: str):
     cookie_jar = MozillaCookieJar()
     cookie_jar.load(cookie_file, ignore_expires=True)
     client.cookies.update(cookie_jar)
+
+
+async def download_with_progress(client: Client, request: Request, update: Update = None) -> bytes:
+    """
+
+    :param client: The client used to download the file.
+    :param file: The file to download.
+    :param update: Function called when a chunk is downloaded.
+    """
+    content = b""
+    x = client.stream("GET", "")
+    async with client.stream(
+            request.method,
+            request.url,
+            headers=request.headers,
+            cookies=request.cookies,
+            follow_redirects=request.follow_redirects
+            ) as response:
+        total_filesize = int(response.headers["Content-length"])
+        async for chunk in response.aiter_bytes():
+            content += chunk
+            if update:
+                update(len(chunk)/total_filesize)
+    return content

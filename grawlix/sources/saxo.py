@@ -1,7 +1,7 @@
-from grawlix.book import Book, Metadata, SingleFile, OnlineFile
-from grawlix import source, AESEncryption
+from grawlix.book import Book, Metadata
+from grawlix import source, encryption
 from grawlix.exceptions import ThrottleError, InvalidUrl
-from grawlix.utils import http, option
+from grawlix.utils import blob, http, option
 
 import re
 from .source import Source
@@ -75,15 +75,13 @@ async def download(state: State, book_id: str) -> Book:
             authors = option.to_list(metadata.get("author")),
             language = metadata.get("languageLocalized")
         ),
-        data = SingleFile(
-            OnlineFile(
-                url = url,
-                extension = "epub",
-                # Encryption keys extracted from app
-                encryption = AESEncryption(
-                    key = b"CD3E9D141D8EFC0886912E7A8F3652C4",
-                    iv = b"78CB354D377772F1"
-                )
+        data = blob.request(
+            url = url,
+            format = blob.Format.Epub,
+            # Encryption keys extracted from app
+            encryption = encryption.AESEncryption(
+                key = b"CD3E9D141D8EFC0886912E7A8F3652C4",
+                iv = b"78CB354D377772F1"
             )
         )
     )

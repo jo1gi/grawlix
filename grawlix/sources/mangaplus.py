@@ -1,9 +1,9 @@
 from .source import Source
 from grawlix import source, logging
-from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result, StandardBookId
+from grawlix.book import Book, Metadata, ImageList, Series, Result, StandardBookId
 from grawlix.encryption import XOrEncryption
 from grawlix.exceptions import InvalidUrl
-from grawlix.utils import http
+from grawlix.utils import blob, http
 
 import re
 import blackboxprotobuf
@@ -46,9 +46,9 @@ async def download_issue(client: http.Client, issue_id: str) -> Book:
     for image in parsed["1"]["10"]["1"]:
         if "1" in image:
             images.append(
-                OnlineFile(
-                    image["1"]["1"],
-                    extension = "jpg",
+                blob.request(
+                    url = image["1"]["1"],
+                    format = blob.Format.Jpg,
                     encryption = XOrEncryption(bytes.fromhex(image["1"]["5"]))
                 )
             )

@@ -1,7 +1,7 @@
-from grawlix.book import Book, SingleFile, Metadata, OfflineFile
+from grawlix.book import Book, Metadata
 from grawlix.exceptions import DataNotFound, AccessDenied, SourceNotAuthenticated
 from grawlix import logging, source
-from grawlix.utils import http, option
+from grawlix.utils import http, option, blob
 
 from typing import TypeAlias
 import random
@@ -73,18 +73,15 @@ async def download(client: http.Client, book_id: Id) -> Book:
         download_acsm(client, book_id)
     )
     return Book(
-        data = SingleFile(
-            OfflineFile(
-                content = acsm_file,
-                extension = "acsm",
-            )
+        data = blob.Blob(
+            content = acsm_file,
+            format = blob.Format.Acsm,
         ),
         metadata = Metadata(
             title = metadata["title"],
             authors = option.to_list(metadata.get("creator")),
-        )
+        ),
     )
-    pass
 
 
 SOURCE = source.Source(

@@ -1,51 +1,78 @@
-from grawlix.book import Book, BookData, SingleFile, ImageList, OnlineFile, HtmlFiles, EpubInParts
+from grawlix.book import Book, BookData, ImageList, HtmlFiles, EpubInParts
 from grawlix.exceptions import GrawlixError, UnsupportedOutputFormat
 from grawlix.logging import info
+from grawlix.utils import blob, http
 
-from .output_format import OutputFormat
-from .acsm import Acsm
-from .cbz import Cbz
-from .epub import Epub
+from . import cbz, epub
 
-from typing import Callable, Iterable
+from dataclasses import dataclass
+from typing import Callable, Iterable, Awaitable
 from pathlib import Path
 import os
 import platform
 
-async def download_book(book: Book, update_func: Callable, template: str) -> None:
-    """
-    Download and write book to disk
 
-    :param book: Book to download
+@dataclass(slots=True)
+class Output[T: BookData]:
+    f: Callable[[Book[T], str, Callable], Awaitable[None]]
+    extension: str
+    book_data_format: type[T]
+
+    async def download(self, book: Book[T], location: str, update: Callable) -> None:
+        await self.f(book, location, update)
+
+
+async def download_blob(book: Book[blob.Blob], location: str, update: Callable) -> None:
+    client = http.create_client()
+    await blob.write_to_file(book.data, location, client, update)
+
+
+async def download_book(book: Book, update: Callable, template: str) -> None:
     """
-    _, ext = os.path.splitext(template)
-    ext = ext[1:]
-    if ext in get_valid_extensions():
-        output_format = find_output_format(book, ext)()
-    else:
-        output_format = get_default_format(book)
-    location = format_output_location(book, output_format, template)
+    Download and write book to disk.
+
+    :param book: Book to download.
+    :param update: Function called to indicate progression.
+    :param template: Template used to generate output path.
+    """
+    output: Output
+    match type(book.data):
+        case blob.Blob:
+            output = Output(download_blob, blob.extension_of_format(book.data.format), blob.Blob)
+        case ImageList:
+            output = Output(cbz.create_cbz_file, "cbz", ImageList)
+        case HtmlFiles:
+            output = Output(epub.download_html_files, "epub", HtmlFiles)
+        case EpubInParts:
+            output = Output(epub.merge_epubs, "epub", EpubInParts)
+        case _:
+            raise UnsupportedOutputFormat
+
+    location = format_output_location(book, output.extension, template)
+
     if not book.overwrite and os.path.exists(location):
+        # TODO: Better formatting
         info("Skipping - File already exists")
         return
+
     parent = Path(location).parent
     if not parent.exists():
         os.makedirs(parent)
-    await output_format.download(book, location, update_func)
-    await output_format.close()
+
+    await output.download(book, location, update)
 
 
-def format_output_location(book: Book, output_format: OutputFormat, template: str) -> str:
+def format_output_location(book: Book, extension: str, template: str) -> str:
     """
     Create path to output location of book
 
     :param book: Book to download
-    :param output_format: Output format of book
+    :param output_format: Extension of the output format
     :param template: Template for output path
     :returns: Output path
     """
     values = { key: remove_unwanted_chars(str(value)) for key, value in book.metadata.as_dict().items() }
-    path = template.format(**values, ext = output_format.extension)
+    path = template.format(**values, ext = extension)
     return path
 
 
@@ -73,55 +100,3 @@ def remove_unwanted_chars(input: str) -> str:
         return remove_strings(input, "<>:\"/\\|?*")
     else:
         return remove_strings(input, "/")
-
-
-def get_default_format(book: Book) -> OutputFormat:
-    """
-    Get default output format for bookdata.
-    Should only be used if no format was specified by the user
-
-    :param book: Content of book
-    :returns: OutputFormat object matching the default
-    """
-    bookdata = book.data
-    if isinstance(bookdata, SingleFile):
-        extension = bookdata.file.extension
-    elif isinstance(bookdata, ImageList):
-        extension = "cbz"
-    elif isinstance(bookdata, HtmlFiles) or isinstance(bookdata, EpubInParts):
-        extension = "epub"
-    output_format = find_output_format(book, extension)
-    return output_format()
-
-
-def find_output_format(book: Book, extension: str) -> type[OutputFormat]:
-    """
-    Find a compatible output format
-
-    :param book: Book to download
-    :param extension: Extension of output file
-    :returns: Compatible OutputFormat type
-    :raises: UnsupportedOutputFormat if nothing is found
-    """
-    for output_format in get_output_formats():
-        matches_extension = output_format.extension == extension
-        supports_bookdata = type(book.data) in output_format.input_types
-        if matches_extension and supports_bookdata:
-            return output_format
-    raise UnsupportedOutputFormat
-
-def get_valid_extensions() -> list[str]:
-    return [output_format.extension for output_format in get_output_formats()]
-
-
-def get_output_formats() -> list[type[OutputFormat]]:
-    """
-    Get a list of all available output formats
-
-    :returns: List of available output format classes
-    """
-    return [
-        Acsm,
-        Cbz,
-        Epub,
-    ]

@@ -1,8 +1,8 @@
 from grawlix import source
-from grawlix.book import Book, Metadata, OnlineFile, BookData, OnlineFile, SingleFile, EpubInParts, Result, Series, StandardBookId
+from grawlix.book import Book, Metadata, BookData, EpubInParts, Result, Series, StandardBookId
 from grawlix.encryption import AESEncryption
 from grawlix.exceptions import InvalidUrl
-from grawlix.utils import http
+from grawlix.utils import http, blob
 
 from typing import Optional, TypeAlias
 import uuid
@@ -143,9 +143,9 @@ async def download_book(client: State, book_id: str) -> Book:
     files = []
     for part in epub_data["spines"]:
         files.append(
-            OnlineFile(
+            blob.request(
                 url = part["spine_url"],
-                extension = "epub",
+                format = blob.Format.Epub,
                 encryption = encryption
             )
         )

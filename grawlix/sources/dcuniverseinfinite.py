@@ -1,8 +1,8 @@
 from grawlix import logging, source
-from grawlix.book import Result, Book, Metadata, OnlineFile, ImageList, Series, StandardBookId
+from grawlix.book import Result, Book, Metadata, ImageList, Series, StandardBookId
 from grawlix.encryption import Encryption
 from grawlix.exceptions import InvalidUrl, AccessDenied, SourceNotAuthenticated
-from grawlix.utils import http
+from grawlix.utils import blob, http
 from .source import Source
 
 import re
@@ -102,12 +102,12 @@ async def download_issue(client: http.Client, issue_id: str) -> Book:
     uuid = response["uuid"]
     job_id = response["job_id"]
     format_id = response["format"]
-    images: List[OnlineFile] = []
+    images: List[blob.Blob] = []
     for page in response["images"]:
         page_number = page["page_number"]
-        images.append(OnlineFile(
+        images.append(blob.request(
             url = page["signed_url"],
-            extension = "jpg",
+            format = blob.Format.Jpg,
             encryption = DcUniverseInfiniteEncryption(uuid, page_number, job_id, format_id)
         ))
 

@@ -1,7 +1,7 @@
 from grawlix import logging, source, utils
-from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result, StandardBookId
+from grawlix.book import Book, Metadata, ImageList, Series, Result, StandardBookId
 from grawlix.exceptions import InvalidUrl
-from grawlix.utils import http
+from grawlix.utils import blob, http
 
 from typing import TypeAlias
 from bs4 import BeautifulSoup
@@ -46,9 +46,9 @@ async def download_episode(state: http.Client, url: str) -> Book:
     images = []
     for image in soup.find("div", class_="viewer_img _img_viewer_area").find_all("img"):
         images.append(
-            OnlineFile(
+            blob.request(
                 url = image.get("data-url"),
-                extension = "png",
+                format = blob.Format.Png,
                 headers = { "Referer": "https://www.webtoons.com/" }
             )
         )

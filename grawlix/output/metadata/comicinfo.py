@@ -17,7 +17,7 @@ def add_value(element: ET.Element, name: str, value: Optional[str]) -> None:
         subelement.text = str(value)
 
 
-def to_comic_info(metadata: Metadata) -> str:
+def from_metadata(metadata: Metadata) -> str:
     """
     Output as ComicRack metadata format (ComicInfo)
     Documentation: https://anansi-project.github.io/docs/comicinfo

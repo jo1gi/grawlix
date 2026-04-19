@@ -119,7 +119,7 @@ async def download_with_progress(book: Book, progress: Progress, template: str):
     :param progress: Progress object
     :param template: Output template
     """
-    task = logging.add_book(progress, book)
+    task = logging.add_book(progress, book.metadata.title)
     update_function = partial(progress.advance, task)
     await download_book(book, update_function, template)
     progress.advance(task, 1)

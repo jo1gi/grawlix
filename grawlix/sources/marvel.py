@@ -1,7 +1,7 @@
-from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result, StandardBookId
+from grawlix.book import Book, Metadata, ImageList, Series, Result, StandardBookId
 from grawlix.exceptions import InvalidUrl, DataNotFound
 from grawlix import logging, source
-from grawlix.utils import http
+from grawlix.utils import http, blob
 
 from .source import Source
 
@@ -111,9 +111,9 @@ async def download_issue(client: http.Client, issue_id: str) -> Book:
     images = []
     for page in response.json()["data"]["results"][0]["pages"]:
         images.append(
-            OnlineFile(
+            blob.request(
                 url = page["assets"]["source"],
-                extension = "jpg"
+                format = blob.Format.Jpg,
             )
         )
 

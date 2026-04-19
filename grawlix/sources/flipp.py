@@ -1,6 +1,7 @@
-from grawlix.book import Book, Metadata, ImageList, OnlineFile, Series, Result
+from grawlix.book import Book, Metadata, ImageList, Series, Result
 from grawlix.exceptions import InvalidUrl, DataNotFound
 from grawlix import logging, source, utils
+from grawlix.utils import blob
 
 from dataclasses import dataclass
 import re
@@ -94,7 +95,7 @@ async def download_index(state: State, tld: str) -> dict:
     state.index_cache[tld] = index.json()
     return index.json()
 
-async def get_pages(state: State, issue_id: str, series_id: str) -> list[OnlineFile]:
+async def get_pages(state: State, issue_id: str, series_id: str) -> list[blob.Blob]:
     """
     Download page metadata for book
 
@@ -111,7 +112,7 @@ async def get_pages(state: State, issue_id: str, series_id: str) -> list[OnlineF
         low_quality_url = urlparse(page["pages"][0]["image"])
         image_id = low_quality_url.path[1:-9]
         high_quality_url = f"http://pages.cdn.pagesuite.com/{image_id}/highpage.jpg?method=true"
-        result.append(OnlineFile(high_quality_url, "jpg"))
+        result.append(blob.request(high_quality_url, blob.Format.Jpg))
     return result
 
 

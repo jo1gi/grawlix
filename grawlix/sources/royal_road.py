@@ -1,7 +1,7 @@
 from .source import Source
 from grawlix import source
-from grawlix.book import Book, HtmlFile, HtmlFiles, OnlineFile, Metadata
-from grawlix.utils import http
+from grawlix.book import Book, HtmlFile, HtmlFiles, Metadata
+from grawlix.utils import http, blob
 
 from bs4 import BeautifulSoup
 
@@ -25,21 +25,21 @@ async def download(client: http.Client, url: str) -> Book:
         chapters.append(
             HtmlFile(
                 title = chapter.find("a").text.strip(),
-                file = OnlineFile(
+                file = blob.request(
                     url = f"https://royalroad.com{chapter.get('data-url')}",
-                    extension = "html"
+                    format = blob.Format.Html,
                 ),
                 selector = { "class": "chapter-content" }
             )
         )
     return Book(
         data = HtmlFiles(
-            cover = OnlineFile(
+            cover = blob.request(
                 url = soup.find("div", class_="cover-art-container") \
                     .find("img") \
                     .get("src") \
                     .replace("full", "large"),
-                extension = "jpg"
+                format = blob.Format.Jpg
             ),
             htmlfiles = chapters
         ),

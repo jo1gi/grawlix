@@ -1,6 +1,6 @@
 from grawlix import source
-from grawlix.book import Book, HtmlFile, HtmlFiles, OnlineFile, Metadata
-from grawlix.utils import http
+from grawlix.book import Book, HtmlFile, HtmlFiles, Metadata
+from grawlix.utils import blob, http
 
 from bs4 import BeautifulSoup
 
@@ -27,13 +27,13 @@ async def download(client: http.Client, book_id: str) -> Book:
         chapters.append(
             HtmlFile(
                 title = chapter.text,
-                file = OnlineFile(
+                file = blob.request(
                     url = f"https://www.fanfiction.net/s/{book_id}/{index+1}",
-                    extension = "html",
+                    format = blob.Format.Html,
                     headers = {
                         "User-Agent": USER_AGENT,
                     },
-                    cookies = self._client.cookies
+                    cookies = client.cookies
                 ),
                 selector = { "id": "storytext" }
             )

@@ -1,5 +1,3 @@
-from grawlix.book import Book
-
 import rich
 from rich.console import Console
 from rich.markup import render
@@ -73,9 +71,9 @@ def progress(category_name: str, source_name: str, count=1) -> Progress:
     return progress
 
 
-def add_book(progress: Progress, book: Book) -> TaskID:
+def add_book(progress: Progress, book: str) -> TaskID:
     task = progress.add_task(
-        f"[blue]{book.metadata.title}[/]",
+        f"[blue]{book}[/]",
         total = 1
     )
     return task

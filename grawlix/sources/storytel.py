@@ -1,7 +1,7 @@
 from grawlix import logging, source
-from grawlix.book import Book, Metadata, SingleFile, OnlineFile, Result, Series
+from grawlix.book import Book, Metadata, Result, Series
 from grawlix.exceptions import SourceNotAuthenticated, InvalidUrl, DataNotFound
-from grawlix.utils import http
+from grawlix.utils import http, blob
 from .source import Source
 
 import re
@@ -116,12 +116,10 @@ async def download_book(state: State, book_id: str) -> Book:
         metadata = Metadata(
             title = details["title"]
         ),
-        data = SingleFile(
-            OnlineFile(
-                url = epub_url,
-                extension = "epub",
-                headers = state.client.headers
-            )
+        data = blob.request(
+            url = epub_url,
+            format = blob.Format.Epub,
+            headers = state.client.headers
         )
     )
 
