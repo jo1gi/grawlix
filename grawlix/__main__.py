@@ -1,5 +1,5 @@
-from grawlix import source
-from .book import Book, Series
+from grawlix import source, output
+from .book import Book, Series, Result
 from .exceptions import SourceNotAuthenticated, GrawlixError, AccessDenied
 from .sources import find_source
 from .output import download_book
@@ -65,8 +65,7 @@ async def instanciate(url: str, definition: source.Source, options: Options):
     raise SourceNotAuthenticated
 
 
-async def main() -> None:
-    options = load_options()
+async def run(options: Options) -> None:
     logging.debug_mode = options.debug
 
     for url in options.urls:
@@ -78,12 +77,7 @@ async def main() -> None:
             logging.debug(f"{id=}")
             result = await definition.download(instance.state, id)
 
-            if isinstance(result, Book):
-                with logging.progress(result.metadata.title, definition.name) as progress:
-                    await download_with_progress(result, progress, options.book_output_template)
-
-            elif isinstance(result, Series):
-                await download_series(instance, result, options)
+            await download(instance, result, options)
 
             logging.info("")
 
@@ -92,6 +86,15 @@ async def main() -> None:
             if logging.debug_mode:
                 traceback.print_exc()
             exit(1)
+
+
+async def download(instance: source.Instance, result: Result, options: Options) -> None:
+    if isinstance(result, Book):
+        with logging.progress(result.metadata.title, instance.source.name) as progress:
+            await download_with_progress(result, progress, options.book_output_template, options)
+
+    elif isinstance(result, Series):
+        await download_series(instance, result, options)
 
 
 async def download_series(instance: source.Instance, series: Series, options: Options) -> None:
@@ -103,15 +106,11 @@ async def download_series(instance: source.Instance, series: Series, options: Op
     """
     with logging.progress(series.title, instance.source.name, len(series.book_ids)) as progress:
         for book_id in series.book_ids:
-            try:
-                book = await instance.download(book_id)
-                await download_with_progress(book, progress, options.series_output_template)
-            except AccessDenied as error:
-                logging.info("Skipping - Access Denied")
+            book = await instance.download(book_id)
+            await download_with_progress(book, progress, options.series_output_template, options)
 
 
-
-async def download_with_progress(book: Book, progress: Progress, template: str):
+async def download_with_progress(book: Book, progress: Progress, template: str, options: Options):
     """
     Download book with progress bar in cli
 
@@ -122,13 +121,16 @@ async def download_with_progress(book: Book, progress: Progress, template: str):
     task = logging.add_book(progress, book.metadata.title)
     update_function = partial(progress.advance, task)
     await download_book(book, update_function, template)
+    if options.export_metadata:
+        output.write_metadata(book, template)
     progress.advance(task, 1)
 
 
-def run() -> None:
+def main() -> None:
     """Start main function"""
-    asyncio.run(main())
+    options = load_options()
+    asyncio.run(run(options))
 
 
 if __name__ == "__main__":
-    run()
+    main()

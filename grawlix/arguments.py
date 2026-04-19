@@ -59,4 +59,12 @@ def parse_arguments() -> argparse.Namespace:
         dest = "debug",
         action="store_true",
     )
+    # Metadata
+    parser.add_argument(
+        '-m',
+        '--export-metadata',
+        help = "Export metadata",
+        dest = "export_metadata",
+        action="store_true"
+    )
     return parser.parse_args()

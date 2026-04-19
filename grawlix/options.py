@@ -15,6 +15,7 @@ class Options:
     username: str | None
     password: str | None
     debug: bool
+    export_metadata: bool
     source_options: dict[str, config.SourceConfig]
 
 
@@ -43,6 +44,7 @@ def load_options() -> Options:
         urls = urls,
         cookie_file = cookie_file,
         debug = args.debug,
+        export_metadata = args.export_metadata,
         book_output_template = args.output or "{title}.{ext}",
         series_output_template = args.output or "{series}/{title}.{ext}",
         source_options = conf.sources,

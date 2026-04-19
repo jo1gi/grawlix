@@ -5,14 +5,15 @@ from grawlix.utils import blob, http
 
 from . import cbz, epub
 
-from dataclasses import dataclass
+import json
+import dataclasses
 from typing import Callable, Iterable, Awaitable
 from pathlib import Path
 import os
 import platform
 
 
-@dataclass(slots=True)
+@dataclasses.dataclass(slots=True)
 class Output[T: BookData]:
     f: Callable[[Book[T], str, Callable], Awaitable[None]]
     extension: str
@@ -37,13 +38,13 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
     """
     output: Output
     match type(book.data):
-        case blob.Blob:
+        case blob.Blob(_, _, _):
             output = Output(download_blob, blob.extension_of_format(book.data.format), blob.Blob)
-        case ImageList:
+        case ImageList(_):
             output = Output(cbz.create_cbz_file, "cbz", ImageList)
-        case HtmlFiles:
+        case HtmlFiles(_, _):
             output = Output(epub.download_html_files, "epub", HtmlFiles)
-        case EpubInParts:
+        case EpubInParts(_, _):
             output = Output(epub.merge_epubs, "epub", EpubInParts)
         case _:
             raise UnsupportedOutputFormat
@@ -60,6 +61,12 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
         os.makedirs(parent)
 
     await output.download(book, location, update)
+
+
+def write_metadata(book: Book, template: str):
+    path = format_output_location(book, "json", template)
+    with open(path, "w") as f:
+        json.dump(dataclasses.asdict(book.metadata), f, indent=4)
 
 
 def format_output_location(book: Book, extension: str, template: str) -> str:
