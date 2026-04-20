@@ -1,6 +1,6 @@
 from grawlix.book import Book, BookData, ImageList, HtmlFiles, EpubInParts
 from grawlix.exceptions import GrawlixError, UnsupportedOutputFormat
-from grawlix.logging import info
+from grawlix import logging
 from grawlix.utils import blob, http
 
 from . import cbz, epub
@@ -36,8 +36,9 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
     :param update: Function called to indicate progression.
     :param template: Template used to generate output path.
     """
+    logging.debug(f"Downloading {book}")
     output: Output
-    match type(book.data):
+    match book.data:
         case blob.Blob(_, _, _):
             output = Output(download_blob, blob.extension_of_format(book.data.format), blob.Blob)
         case ImageList(_):
@@ -53,7 +54,7 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
 
     if not book.overwrite and os.path.exists(location):
         # TODO: Better formatting
-        info("Skipping - File already exists")
+        logging.info("Skipping - File already exists")
         return
 
     parent = Path(location).parent
@@ -64,9 +65,33 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
 
 
 def write_metadata(book: Book, template: str):
+    """
+    Write book metadata to a file.
+
+    :param book: The book with metadata.
+    :param template: Template for the output path.
+    """
     path = format_output_location(book, "json", template)
+
+    parent = Path(path).parent
+    if not parent.exists():
+        os.makedirs(parent)
+
+    metadata = book.metadata
+    formatted = {
+        "title": metadata.title,
+        "authors": metadata.authors,
+        "series": metadata.series,
+        "series_index": metadata.index,
+        "release_date": metadata.release_date.isoformat() if metadata.release_date else None,
+        "publisher": metadata.publisher,
+        "description": metadata.description,
+        "isbn": metadata.isbn,
+        "language": metadata.language,
+        "cover_link": metadata.cover_link,
+    }
     with open(path, "w") as f:
-        json.dump(dataclasses.asdict(book.metadata), f, indent=4)
+        json.dump(formatted, f, indent=4)
 
 
 def format_output_location(book: Book, extension: str, template: str) -> str:
@@ -80,7 +105,7 @@ def format_output_location(book: Book, extension: str, template: str) -> str:
     """
     values = { key: remove_unwanted_chars(str(value)) for key, value in book.metadata.as_dict().items() }
     path = template.format(**values, ext = extension)
-    return path
+    return os.path.expanduser(path)
 
 
 def remove_strings(input: str, strings: Iterable[str]) -> str:

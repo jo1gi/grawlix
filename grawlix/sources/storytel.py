@@ -1,6 +1,6 @@
 from grawlix import logging, source
 from grawlix.book import Book, Metadata, Result, Series
-from grawlix.exceptions import SourceNotAuthenticated, InvalidUrl, DataNotFound
+from grawlix.exceptions import SourceNotAuthenticated, InvalidUrl, DataNotFound, AccessDenied
 from grawlix.utils import http, blob
 from .source import Source
 
@@ -10,8 +10,9 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from typing import Any, Literal
 from dataclasses import dataclass
+import datetime
 
-VERSION = "23.49"
+VERSION = "26.17"
 
 SUPPORTED_URLS = [
     r"https?://(?:www.)?(?:storytel|mofibo).com/(?P<language>\w+)(?:/(?P<language2>\w+))?/(?P<list_type>(?:books|series|authors|narrators|publishers|categories))/.+",
@@ -102,7 +103,11 @@ async def download_book(state: State, book_id: str) -> Book:
     # Epub location
     response = await state.client.get(
         f"https://api.storytel.net/assets/v2/consumables/{book_id}/ebook",
+        follow_redirects = False
     )
+    if "Location" not in response.headers:
+        logging.debug(f"Could not get epub url: {response.content=}")
+        raise AccessDenied
     state.download_counter += 1
     epub_url = response.headers["Location"]
 
@@ -111,10 +116,24 @@ async def download_book(state: State, book_id: str) -> Book:
         f"https://api.storytel.net/book-details/consumables/{book_id}?kidsMode=false&configVariant=default"
     )
     details = response.json()
+    for format in details["formats"]:
+        if format["type"] == "ebook":
+            ebook_format = format
+            break
+    series_info = details.get("seriesInfo") or {}
 
     return Book(
         metadata = Metadata(
-            title = details["title"]
+            title = details["title"],
+            description = details["description"],
+            release_date = datetime.date.fromisoformat(ebook_format["releaseDate"].split("T")[0]),
+            authors = [ author["name"] for author in details["authors"] ],
+            publisher = ebook_format["publisher"]["name"],
+            series = series_info.get("name"),
+            index = series_info.get("orderInSeries"),
+            isbn = ebook_format.get("isbn"),
+            language = details.get("language"),
+            cover_link = details["cover"]["url"],
         ),
         data = blob.request(
             url = epub_url,
@@ -125,21 +144,19 @@ async def download_book(state: State, book_id: str) -> Book:
 
 
 async def download_list(state: State, list_type: str, list_id: str) -> Series[Id]:
-    nextPageToken = 0
-
     # API returns only 10 items per request
-    # if the nextPageToken
-    result: dict[str, Any] = {"nextPageToken": False}
+    title: str = ""
+    nextPageToken: int = 0
+    items: list[dict] = []
 
-    while result["nextPageToken"] is not None:
+    while True:
         params: dict[str, str] = {
             "includeListDetails": "true",  # include listMetadata,filterOptions,sortOption sections
             "includeFormats": "ebooks",
-            # "includeLanguages": languages,
+            "includeLanguages": "da,en,fi,ng,sv",
             "kidsMode": "false",
+            "nextPageToken": str(nextPageToken),
         }
-        if result["nextPageToken"]:
-            params["nextPageToken"] = result["nextPageToken"]
 
         response = await state.client.get(
             f"https://api.storytel.net/explore/lists/{list_type}/{list_id}",
@@ -147,21 +164,22 @@ async def download_list(state: State, list_type: str, list_id: str) -> Series[Id
         )
 
         data = response.json()
-        if result["nextPageToken"] == 0:
-            result = data
-        else:
-            result["items"].extend(data["items"])
-            result["nextPageToken"] = data["nextPageToken"]
-        logging.debug(f"{result=}")
+        if "title" in data:
+            title = data["title"]
+        items.extend(data["items"])
+        nextPageToken = data["nextPageToken"]
+
+        if nextPageToken is None:
+            break
 
     books: list[Id] = [
         Id("books", item["id"])
-        for item in result["items"]
+        for item in items
         if "ebook" in [format["type"] for format in item["formats"]]
     ]
 
     return Series(
-        title = result["title"],
+        title = title,
         book_ids = books
     )
 

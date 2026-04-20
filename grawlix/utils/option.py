@@ -1,3 +1,5 @@
+from typing import Callable
+
 def to_list[T](optional: T | None) -> list[T]:
     """
     Convert an optional to a list with zero or one item.
