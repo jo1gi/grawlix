@@ -98,6 +98,7 @@ async def download_issue(client: http.Client, issue_id: str) -> Book:
     )
     response = response.json()
     if not "uuid" in response:
+        logging.debug(f"{response=}")
         raise AccessDenied
     uuid = response["uuid"]
     job_id = response["job_id"]

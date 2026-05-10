@@ -1,4 +1,4 @@
-from grawlix import source
+from grawlix import source, logging
 from grawlix.book import Book, Metadata, BookData, EpubInParts, Result, Series, StandardBookId
 from grawlix.encryption import AESEncryption
 from grawlix.exceptions import InvalidUrl
@@ -7,6 +7,7 @@ from grawlix.utils import http, blob
 from typing import Optional, TypeAlias
 import uuid
 import base64
+import datetime
 
 State: TypeAlias = http.Client
 Id: TypeAlias = StandardBookId[str]
@@ -24,7 +25,7 @@ async def login(url: str, username: str, password: str) -> State:
     client.headers.update(
         {
             "X-Application-Id": "200",
-            "X-App-Version": "5.4.1",
+            "X-App-Version": "2026.05.1",
             "X-Locale": LOCALE,
             "X-Model": "Personal Computer",
             "X-Device-Id": str(uuid.uuid3(uuid.NAMESPACE_DNS, "audiobook-dl")),
@@ -74,9 +75,9 @@ async def login(url: str, username: str, password: str) -> State:
 async def id_of_url(state: State, url: str) -> Id:
     id = url.split("-")[-1].replace("/", "")
     if "serier" in url:
-        return StandardBookId("book", id)
-    else:
         return StandardBookId("series", id)
+    else:
+        return StandardBookId("book", id)
 
 
 async def download_series(client: State, series_id: str) -> Series[Id]:
@@ -96,6 +97,7 @@ async def download_series(client: State, series_id: str) -> Series[Id]:
         }
     )
     series_data = response.json()
+    logging.debug(f"{series_data=}")
     book_ids = []
     for book in series_data["products"]:
         book_id = book["id"]
@@ -115,15 +117,17 @@ async def download_book(client: State, book_id: str) -> Book:
         f"https://api.nextory.com/library/v1/products/{book_id}"
     )
     product_data = product_data.json()
+    logging.debug(f"{product_data=}")
 
     for format in product_data["formats"]:
         if format["type"] == "epub":
-            epub_id = format["identifier"]
-    if epub_id is None:
+            format_data = format
+    if format_data is None:
         raise InvalidUrl
+    epub_id = format_data["identifier"]
 
     series_name = None
-    if "series" in product_data:
+    if "series" in product_data and product_data["series"]:
         series_name = product_data["series"]["name"]
 
     # Nextory books are for some reason split up into multiple epub files -
@@ -140,9 +144,9 @@ async def download_book(client: State, book_id: str) -> Book:
         key = fix_key(epub_data["crypt_key"]),
         iv = fix_key(epub_data["crypt_iv"])
     )
-    files = []
+    parts: list[blob.Blob] = []
     for part in epub_data["spines"]:
-        files.append(
+        parts.append(
             blob.request(
                 url = part["spine_url"],
                 format = blob.Format.Epub,
@@ -154,11 +158,18 @@ async def download_book(client: State, book_id: str) -> Book:
         files_in_toc[item["src"]] = item["name"]
 
     return Book(
-        data = EpubInParts(files, files_in_toc),
+        data = EpubInParts(parts, files_in_toc),
         metadata = Metadata(
             title = product_data["title"],
             authors = [author["name"] for author in product_data["authors"]],
             series = series_name,
+            index = product_data.get("volume"),
+            isbn = format_data.get("isbn"),
+            publisher = format_data["publisher"]["name"],
+            cover_link = format_data.get("img_url"),
+            release_date = datetime.date.fromisoformat(format_data["publication_date"]),
+            description = product_data.get("description_full"),
+            language = product_data.get("language"),
         )
     )
 
