@@ -1,7 +1,7 @@
 from grawlix import logging, source
 from grawlix.book import Result, Book, Metadata, ImageList, Series, StandardBookId
 from grawlix.encryption import Encryption
-from grawlix.exceptions import InvalidUrl, AccessDenied, SourceNotAuthenticated
+from grawlix.exceptions import InvalidUrl, AccessDenied, SourceNotAuthenticated, DataNotFound
 from grawlix.utils import blob, http
 from .source import Source
 
@@ -77,6 +77,9 @@ async def download_series(client: http.Client, series_id: str) -> Series:
         f"https://www.dcuniverseinfinite.com/api/comics/1/series/{series_id}/?trans=en"
     )
     content = response.json()
+    if "title" not in content:
+        logging.debug(f"{content=}")
+        raise DataNotFound
     return Series(
         title = content["title"],
         book_ids = [StandardBookId("book", x) for x in content["book_uuids"]["issue"]]

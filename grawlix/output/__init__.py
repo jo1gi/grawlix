@@ -36,7 +36,7 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
     :param update: Function called to indicate progression.
     :param template: Template used to generate output path.
     """
-    logging.debug(f"Downloading {book}")
+    logging.trace(f"Downloading {book}")
     output: Output
     match book.data:
         case blob.Blob(_, _, _):

@@ -67,6 +67,7 @@ async def instanciate(url: str, definition: source.Source, options: Options):
 
 async def run(options: Options) -> None:
     logging.debug_mode = options.debug
+    logging.trace_mode = options.trace
 
     for url in options.urls:
         try:

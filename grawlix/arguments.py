@@ -59,6 +59,12 @@ def parse_arguments() -> argparse.Namespace:
         dest = "debug",
         action="store_true",
     )
+    parser.add_argument(
+        '--trace',
+        help = "Enable trace messages",
+        dest = "trace",
+        action="store_true",
+    )
     # Metadata
     parser.add_argument(
         '-m',

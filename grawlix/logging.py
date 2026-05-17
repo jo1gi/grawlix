@@ -11,7 +11,23 @@ import importlib.resources
 console = Console(stderr=True)
 
 debug_mode = False
+trace_mode = False
 DEBUG_PREFIX = render("[yellow bold]DEBUG[/]")
+TRACE_PREFIX = render("[green bold]TRACE[/]")
+
+def trace(msg: str, remove_styling=False) -> None:
+    """
+    Print trace message in console
+
+    :param msg: Message to print
+    :param remove_styling: Remove automated styling from message
+    """
+    if trace_mode:
+        if remove_styling:
+            rendered_msg = render(msg, style=Style(bold=False, color="white"))
+            console.print(TRACE_PREFIX, rendered_msg)
+        else:
+            console.print(TRACE_PREFIX, msg)
 
 
 def debug(msg: str, remove_styling=False) -> None:
