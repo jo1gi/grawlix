@@ -1,9 +1,10 @@
-from grawlix import encryption
+from grawlix import encryption, logging
 
 from http.cookiejar import MozillaCookieJar
 from typing import TypeAlias, Optional, Callable, Any, Literal
 from dataclasses import dataclass
 import httpx
+import asyncio
 
 Client: TypeAlias = httpx.AsyncClient
 Update = Optional[Callable[[float], None]]
@@ -45,18 +46,30 @@ async def download_with_progress(client: Client, request: Request, update: Updat
     :param file: The file to download.
     :param update: Function called when a chunk is downloaded.
     """
-    content = b""
-    x = client.stream("GET", "")
-    async with client.stream(
-            request.method,
-            request.url,
-            headers=request.headers,
-            cookies=request.cookies,
-            follow_redirects=request.follow_redirects
-            ) as response:
-        total_filesize = int(response.headers["Content-length"])
-        async for chunk in response.aiter_bytes():
-            content += chunk
-            if update:
-                update(len(chunk)/total_filesize)
-    return content
+
+    async def inner() -> bytes:
+        x = client.stream("GET", "")
+        content = b""
+        async with client.stream(
+                request.method,
+                request.url,
+                headers=request.headers,
+                cookies=request.cookies,
+                follow_redirects=request.follow_redirects
+                ) as response:
+            total_filesize = int(response.headers["Content-length"])
+            async for chunk in response.aiter_bytes():
+                content += chunk
+                if update:
+                    update(len(chunk)/total_filesize)
+            return content
+
+    e: BaseException = RuntimeError()
+    for i in range(3):
+        try:
+            return await inner()
+        except Exception as exception:
+            logging.debug(f"Failed request to {request.url}. Trying again in 2 seconds.")
+            e = exception
+            await asyncio.sleep(2)
+    raise e

@@ -77,6 +77,7 @@ async def download_series(client: http.Client, series_id: str) -> Series:
         f"https://www.dcuniverseinfinite.com/api/comics/1/series/{series_id}/?trans=en"
     )
     content = response.json()
+    logging.debug(f"{content=}")
     if "title" not in content:
         logging.debug(f"{content=}")
         raise DataNotFound

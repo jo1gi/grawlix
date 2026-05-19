@@ -61,7 +61,12 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
     if not parent.exists():
         os.makedirs(parent)
 
-    await output.download(book, location, update)
+    try:
+        await output.download(book, location, update)
+    except Exception as e:
+        logging.info(f"Failed to download {book.metadata.title}")
+        os.remove(location)
+        raise e
 
 
 def write_metadata(book: Book, template: str):
@@ -131,4 +136,4 @@ def remove_unwanted_chars(input: str) -> str:
     if platform.system() == "Windows":
         return remove_strings(input, "<>:\"/\\|?*")
     else:
-        return remove_strings(input, "/")
+        return remove_strings(input, "/:")
