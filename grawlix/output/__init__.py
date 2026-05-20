@@ -4,6 +4,7 @@ from grawlix import logging
 from grawlix.utils import blob, http
 
 from . import cbz, epub
+from .context import Context
 
 import json
 import dataclasses
@@ -15,25 +16,25 @@ import platform
 
 @dataclasses.dataclass(slots=True)
 class Output[T: BookData]:
-    f: Callable[[Book[T], str, Callable], Awaitable[None]]
+    f: Callable[[Context, Book[T], str], Awaitable[None]]
     extension: str
     book_data_format: type[T]
 
-    async def download(self, book: Book[T], location: str, update: Callable) -> None:
-        await self.f(book, location, update)
+    async def download(self, context: Context, book: Book[T], location: str) -> None:
+        await self.f(context, book, location)
 
 
-async def download_blob(book: Book[blob.Blob], location: str, update: Callable) -> None:
+async def download_blob(context, book: Book[blob.Blob], location: str) -> None:
     client = http.create_client()
-    await blob.write_to_file(book.data, location, client, update)
+    await blob.write_to_file(book.data, location, client, context.advance)
 
 
-async def download_book(book: Book, update: Callable, template: str) -> None:
+async def download_book(context: Context, book: Book, template: str) -> None:
     """
     Download and write book to disk.
 
+    :param context: Downloading context:
     :param book: Book to download.
-    :param update: Function called to indicate progression.
     :param template: Template used to generate output path.
     """
     logging.trace(f"Downloading {book}")
@@ -53,8 +54,7 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
     location = format_output_location(book, output.extension, template)
 
     if not book.overwrite and os.path.exists(location):
-        # TODO: Better formatting
-        logging.info("Skipping - File already exists")
+        context.abort("Already downloaded", True)
         return
 
     parent = Path(location).parent
@@ -62,9 +62,11 @@ async def download_book(book: Book, update: Callable, template: str) -> None:
         os.makedirs(parent)
 
     try:
-        await output.download(book, location, update)
+        await output.download(context, book, location)
+        # Make sure the progress bar has completed
+        context.complete()
     except Exception as e:
-        logging.info(f"Failed to download {book.metadata.title}")
+        context.abort("Failed to download", False)
         os.remove(location)
         raise e
 

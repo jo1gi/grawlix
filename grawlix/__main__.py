@@ -2,7 +2,7 @@ from grawlix import source, output
 from .book import Book, Series, Result
 from .exceptions import SourceNotAuthenticated, GrawlixError, AccessDenied
 from .sources import find_source
-from .output import download_book
+from .output import download_book, context
 from .options import load_options, Options
 from . import config, logging
 
@@ -119,12 +119,10 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
     :param progress: Progress object
     :param template: Output template
     """
-    task = logging.add_book(progress, book.metadata.title)
-    update_function = partial(progress.advance, task)
-    await download_book(book, update_function, template)
+    current_context = context.create_context(progress, book.metadata.title)
+    await download_book(current_context, book, template)
     if options.export_metadata:
         output.write_metadata(book, template)
-    progress.advance(task, 1)
 
 
 def main() -> None:

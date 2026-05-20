@@ -1,3 +1,5 @@
+from .context import Context
+
 from grawlix.book import HtmlFiles, HtmlFile, Book, Metadata, EpubInParts
 from grawlix.utils import http, blob
 
@@ -7,8 +9,14 @@ import os
 from ebooklib import epub
 from zipfile import ZipFile
 
-async def download_html_files(book: Book[HtmlFiles], location: str, update: http.Update) -> None:
-    client = http.create_client()
+async def download_html_files(context: Context, book: Book[HtmlFiles], location: str) -> None:
+    """
+    Download html files into an epub.
+
+    :param context: The download context.
+    :param book: The book to download.
+    :param location: The output path.
+    """
     output = epub.EpubBook()
     output.set_title(book.metadata.title)
     for author in book.metadata.authors:
@@ -18,16 +26,15 @@ async def download_html_files(book: Book[HtmlFiles], location: str, update: http
     async def download_cover(cover_file: blob.Blob):
         cover_filename = f"cover.{blob.extension_of_format(cover_file.format)}"
         epub_cover = epub.EpubCover(file_name = cover_filename)
-        epub_cover.content = await blob.get_content(cover_file, client)
+        epub_cover.content = await blob.get_content(cover_file, context.client)
         output.add_item(epub_cover)
         epub_cover_page = epub.EpubCoverHtml(image_name = cover_filename)
-        if update:
-            update(1/file_count)
+        context.advance(1/file_count)
         return epub_cover_page
 
 
     async def download_file(index: int, file: HtmlFile):
-        response = await blob.get_content(file.file, client)
+        response = await blob.get_content(file.file, context.client)
         soup = BeautifulSoup(response.text, "lxml")
         selected_element = soup.find(attrs=file.selector)
         epub_file = epub.EpubHtml(
@@ -35,8 +42,7 @@ async def download_html_files(book: Book[HtmlFiles], location: str, update: http
             file_name = f"part {index}.html",
             content = str(selected_element)
         )
-        if update:
-            update(1/file_count)
+        context.advance(1/file_count)
         return epub_file
 
     # Download files
@@ -76,16 +82,14 @@ def find_title_in_toc(filepath: str, table_of_contents: dict[str, str]) -> str |
     return None
 
 
-async def merge_epubs(book: Book[EpubInParts], location: str, update: http.Update) -> None:
+async def merge_epubs(context: Context, book: Book[EpubInParts], location: str) -> None:
     """
     Merge multiple epubs into a single epub.
 
-    :param epubs: The epubs to merge.
-    :param metadata: Metadata for the final file.
+    :param context: The download context
+    :param book: The epubs to merge.
     :param location: The output location of the merged epub.
-    :param update: Function called to indicate progress
     """
-    client = http.create_client()
     epubs = book.data
     metadata = book.metadata
     progress = 1/(len(epubs.files))
@@ -94,7 +98,7 @@ async def merge_epubs(book: Book[EpubInParts], location: str, update: http.Updat
     added_files: set[str] = set()
     output = epub.EpubBook()
     for file in epubs.files:
-        await blob.write_to_file(file, temporary_file_location, client)
+        await blob.write_to_file(file, temporary_file_location, context.client)
         with ZipFile(temporary_file_location, "r") as zipfile:
             for filepath in zipfile.namelist():
                 # The epubs may contain duplicate files which doesn't make sense to add again.
@@ -124,8 +128,7 @@ async def merge_epubs(book: Book[EpubInParts], location: str, update: http.Updat
                     )
                     output.add_item(epub_file)
                 added_files.add(filepath)
-        if update:
-            update(progress)
+        context.advance(progress)
     os.remove(temporary_file_location)
 
     output.add_item(epub.EpubNcx())

@@ -1,17 +1,15 @@
-import rich
 from rich.console import Console
 from rich.markup import render
 from rich.progress import Progress, BarColumn, ProgressColumn, TaskID, SpinnerColumn
 from rich.style import Style
 
-from typing import Union
-from dataclasses import dataclass
 import importlib.resources
 
 console = Console(stderr=True)
 
 debug_mode = False
 trace_mode = False
+
 DEBUG_PREFIX = render("[yellow bold]DEBUG[/]")
 TRACE_PREFIX = render("[green bold]TRACE[/]")
 

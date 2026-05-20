@@ -41,6 +41,9 @@ class Blob:
     format: Format
     encryption: Encryption | None = None
 
+    def extension(self):
+        return extension_of_format(self.format)
+
 
 def request(
     url: str,
