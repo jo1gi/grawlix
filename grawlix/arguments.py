@@ -15,62 +15,65 @@ def parse_arguments() -> argparse.Namespace:
         version = f"grawlix {__version__}"
     )
     # Basics
-    parser.add_argument(
+    input_group = parser.add_argument_group("Inputs")
+    input_group.add_argument(
         'urls',
         help = "Links to ebooks",
         nargs = "*"
     )
-    parser.add_argument(
+    input_group.add_argument(
         '-f',
         '--file',
         help = "File with links (One link per line)",
         dest = "file"
     )
     # Authentication
-    parser.add_argument(
+    authentication_group = parser.add_argument_group("Authentication")
+    authentication_group.add_argument(
         '-u',
         '--username',
         help = "Username for login",
         dest = "username",
     )
-    parser.add_argument(
+    authentication_group.add_argument(
         '-p',
         '--password',
         help = "Password for login",
         dest = "password",
     )
-    parser.add_argument(
+    authentication_group.add_argument(
         '-c',
         '--cookies',
         help = "Path to netscape cookie file",
         dest = "cookie_file"
     )
     # Outputs
-    parser.add_argument(
+    output_group = parser.add_argument_group("Outputs")
+    output_group.add_argument(
         '-o',
         '--output',
         help = "Output destination",
         dest = "output"
     )
-    # Logging
-    parser.add_argument(
-        '--debug',
-        help = "Enable debug messages",
-        dest = "debug",
-        action="store_true",
-    )
-    parser.add_argument(
-        '--trace',
-        help = "Enable trace messages",
-        dest = "trace",
-        action="store_true",
-    )
-    # Metadata
-    parser.add_argument(
+    output_group.add_argument(
         '-m',
         '--export-metadata',
         help = "Export metadata",
         dest = "export_metadata",
         action="store_true"
+    )
+    # Logging
+    logging_group = parser.add_argument_group("Logging")
+    logging_group.add_argument(
+        '--debug',
+        help = "Enable debug messages",
+        dest = "debug",
+        action="store_true",
+    )
+    logging_group.add_argument(
+        '--trace',
+        help = "Enable trace messages",
+        dest = "trace",
+        action="store_true",
     )
     return parser.parse_args()
