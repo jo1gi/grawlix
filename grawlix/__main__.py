@@ -105,10 +105,15 @@ async def download_series(instance: source.Instance, series: Series, options: Op
     :param series: Series to download
     :param options: User defined options
     """
+    queue = list(series.book_ids)
     with logging.progress(series.title, instance.source.name, len(series.book_ids)) as progress:
-        for book_id in series.book_ids:
-            book = await instance.download(book_id)
-            await download_with_progress(book, progress, options.series_output_template, options)
+        while len(queue) > 0:
+            book_id = queue.pop(0)
+            result = await instance.download(book_id)
+            if isinstance(result, Book):
+                await download_with_progress(result, progress, options.series_output_template, options)
+            elif isinstance(result, Series):
+                queue.extend(result.book_ids)
 
 
 async def download_with_progress(book: Book, progress: Progress, template: str, options: Options):
