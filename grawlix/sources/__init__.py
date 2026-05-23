@@ -22,6 +22,7 @@ SOURCES: list[source.Source] = [
     webtoons.SOURCE,
 ]
 
+cache: dict[str, source.Instance] = {}
 
 def find_source(url: str) -> source.Source:
     """
@@ -35,3 +36,22 @@ def find_source(url: str) -> source.Source:
         if support == UrlSupport.SupportedUrl:
             return definition
     raise InvalidUrl
+
+
+def save_instance_to_cache(instance: source.Instance) -> None:
+    """
+    Save an instance to the cache.
+
+    :param instance: The instance to save.
+    """
+    cache[instance.source.name] = instance
+
+
+def load_instance_from_cache(definition: source.Source) -> source.Instance | None:
+    """
+    Load instance from cached instances.
+
+    :param defintion: The definition to load instance of from cache.
+    :return: The instance if it is availabe; `None` otherwise.
+    """
+    return cache.get(definition.name)

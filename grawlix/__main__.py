@@ -1,7 +1,7 @@
 from grawlix import source, output
 from .book import Book, Series, Result
 from .exceptions import SourceNotAuthenticated, GrawlixError, AccessDenied
-from .sources import find_source
+from .sources import find_source, load_instance_from_cache, save_instance_to_cache
 from .output import download_book, context
 from .options import load_options, Options
 from . import config, logging
@@ -47,22 +47,29 @@ async def instanciate(url: str, definition: source.Source, options: Options):
     :param source: Source to authenticate
     :param options: User defined options
     """
+    cached_instance = load_instance_from_cache(definition)
+    if cached_instance is not None:
+        return cached_instance
+
     logging.info(f"Authenticating with source [magenta]{definition.name}[/]")
 
     if definition.load_cookies and options.cookie_file:
         state = await definition.load_cookies(options.cookie_file)
-        return source.Instance(definition, state)
 
-    if definition.login:
+    elif definition.login:
         username, password = get_login(definition.name, options)
         state = await definition.login(url, username, password)
-        return source.Instance(definition, state)
 
-    if definition.instanciate_without_login:
+    elif definition.instanciate_without_login:
         state = await definition.instanciate_without_login(url)
-        return source.Instance(definition, state)
 
-    raise SourceNotAuthenticated
+    else:
+        raise SourceNotAuthenticated
+
+    instance = source.Instance(definition, state)
+    save_instance_to_cache(instance)
+    return instance
+
 
 
 async def run(options: Options) -> None:
