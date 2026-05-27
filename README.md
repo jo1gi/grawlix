@@ -12,6 +12,7 @@ grawlix currently supports downloading from the following sources:
 - [eReolen](https://ereolen.dk)
 - [fanfiction.net](https://www.fanfiction.net)
 - [Flipp](https://flipp.dk)
+- [GlobalComix](https://globalcomix.com)
 - [Internet Archive](https://archive.org)
 - [Manga Plus](https://mangaplus.shueisha.co.jp)
 - [Marvel Unlimited](https://marvel.com)

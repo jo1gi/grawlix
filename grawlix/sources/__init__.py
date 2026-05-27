@@ -1,5 +1,5 @@
 from . import dcuniverseinfinite, ereolen, fanfictionnet, flipp, \
-    internet_archive, mangaplus, marvel, nextory, royal_road, saxo, storytel, \
+    globalcomix, internet_archive, mangaplus, marvel, nextory, royal_road, saxo, storytel, \
     webtoons
 
 from grawlix import source
@@ -12,6 +12,7 @@ SOURCES: list[source.Source] = [
     ereolen.SOURCE,
     fanfictionnet.SOURCE,
     flipp.SOURCE,
+    globalcomix.SOURCE,
     internet_archive.SOURCE,
     mangaplus.SOURCE,
     marvel.SOURCE,
