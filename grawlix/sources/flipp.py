@@ -19,7 +19,7 @@ LANGUAGE_CODE_MAPPING = {
 
 SUPPORTED_URLS = [
     r"https?://reader.flipp.(dk|no|se)/html5/reader/(production|stage)/default.aspx\?pubname=&edid=([^/]+)",
-    r"https?://(magasiner|blader).flipp.(dk|no|se)/flipp/web-app/#/publications/.+"
+    r"https?://(tidningar|magasiner|blader).flipp.(dk|no|se)/flipp/web-app/#/publications/.+"
 ]
 
 @dataclass(slots=True)
@@ -155,7 +155,8 @@ async def download_book(state: State, issue_id: str, series_id: str, tld: str) -
         metadata = Metadata(
             title = f"{issue_metadata['series_name']} {issue_metadata['issueName']}",
             series = issue_metadata["series_name"],
-            identifier = issue_id
+            identifier = issue_id,
+            cover_link = pages[0].url()
         ),
     )
 

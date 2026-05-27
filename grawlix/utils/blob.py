@@ -45,6 +45,14 @@ class Blob:
         return extension_of_format(self.format)
 
 
+    def url(self) -> str | None:
+        """Get the url of the blob, if the content is a request."""
+        if isinstance(self.content, http.Request):
+            return self.content.url
+        return None
+
+
+
 def request(
     url: str,
     format: Format,
