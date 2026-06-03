@@ -122,7 +122,7 @@ class Saxo(Source):
         :param url: Url of book
         :returns: Isbn of book
         """
-        isbn_match = re.search(f"\d+$", url)
+        isbn_match = re.search(r"\d+$", url)
         if isbn_match and isbn_match.group():
             return isbn_match.group()
         raise NotImplemented

@@ -30,7 +30,7 @@ class Nextory(Source):
         self._client.headers.update(
             {
                 "X-Application-Id": "200",
-                "X-App-Version": "5.4.1",
+                "X-App-Version": "2026.05.4",
                 "X-Locale": LOCALE,
                 "X-Model": "Personal Computer",
                 "X-Device-Id": device_id,
@@ -139,9 +139,10 @@ class Nextory(Source):
 
     @staticmethod
     def _extract_series_name(product_info: dict) -> Optional[str]:
-        if not "series" in product_info:
+        series = product_info.get("series")
+        if not series:
             return None
-        return product_info["series"]["name"]
+        return series["name"]
 
 
     async def _get_book_id_from_url_id(self, url_id: str) -> str:
