@@ -48,7 +48,6 @@ async def download_with_progress(client: Client, request: Request, update: Updat
     """
 
     async def inner() -> bytes:
-        x = client.stream("GET", "")
         content = b""
         async with client.stream(
                 request.method,

@@ -1,5 +1,5 @@
 from grawlix.book import Result, Book, Metadata
-from grawlix.encryption import AESCTREncryption
+from grawlix.encryption import AesCtrEncryption
 from grawlix.exceptions import InvalidUrl, DataNotFound
 from grawlix.utils import blob, get_arg_from_url
 from grawlix import logging, source, utils
@@ -24,10 +24,7 @@ SUPPORTED_URLS = [
     rf"https://(www.)?({"|".join(LIBRARY_DOMAINS)})/reader\?orderid=.+$",
 ]
 
-KEY_ENCRYPTION_KEY = bytes([
-    30, 193, 150, 69, 32, 247, 35, 95, 92, 255, 193, 159, 121, 40, 151, 179,
-    39, 159, 75, 110, 32, 205, 210, 58, 81, 55, 158, 33, 8, 149, 108, 74
-])
+KEY_ENCRYPTION_KEY = bytes([30, 193, 150, 69, 32, 247, 35, 95, 92, 255, 193, 159, 121, 40, 151, 179, 39, 159, 75, 110, 32, 205, 210, 58, 81, 55, 158, 33, 8, 149, 108, 74])
 KEY_ENCRYPTION_IV = bytes([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
 
 
@@ -92,7 +89,7 @@ async def download(state: State, book_id: str) -> Result:
         data = blob.request(
             url = f"https://bookstreaming.pubhub.dk/v1/order/file/{book_id}",
             format = blob.Format.Epub,
-            encryption = AESCTREncryption(
+            encryption = AesCtrEncryption(
                 key,
                 nonce = bytes([0,0,0,0,0,0,0,0]),
                 initial_value = bytes([0,0,0,0,0,0,0,0])

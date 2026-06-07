@@ -90,7 +90,7 @@ async def get_content(blob: Blob, client: http.Client, update: http.Update = Non
         content = blob.content
 
     if blob.encryption:
-        decrypt(content, blob.encryption)
+        content = decrypt(content, blob.encryption)
 
     return content
 

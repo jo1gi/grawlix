@@ -14,7 +14,7 @@ class AESEncryption:
 
 
 @dataclass(slots=True)
-class AESCTREncryption:
+class AesCtrEncryption:
     key: bytes
     nonce: bytes
     initial_value: bytes
