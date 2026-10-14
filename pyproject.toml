@@ -29,7 +29,7 @@ dynamic = ["version"]
 "Bugtracker" = "https://github.com/jo1gi/grawlix/issues"
 
 [project.scripts]
-grawlix = "grawlix.__main__:run"
+grawlix = "grawlix.__main__:main"
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
