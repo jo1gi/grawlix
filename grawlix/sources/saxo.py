@@ -1,6 +1,6 @@
 from grawlix.book import Book, Metadata, SingleFile, OnlineFile
 from grawlix import AESEncryption
-from grawlix.exceptions import ThrottleError
+from grawlix.exceptions import ThrottleError, InvalidUrl
 
 import re
 from .source import Source
@@ -122,7 +122,7 @@ class Saxo(Source):
         :param url: Url of book
         :returns: Isbn of book
         """
-        isbn_match = re.search(f"\d+$", url)
+        isbn_match = re.search(r"\d+$", url)
         if isbn_match and isbn_match.group():
             return isbn_match.group()
-        raise NotImplemented
+        raise InvalidUrl

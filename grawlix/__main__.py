@@ -1,4 +1,4 @@
-from .book import Book, Series
+from .book import Book, Series, EpubInParts
 from .config import load_config, Config, SourceConfig
 from .exceptions import SourceNotAuthenticated, GrawlixError, AccessDenied, DataNotFound
 from .sources import load_source, Source
@@ -10,6 +10,7 @@ from rich.prompt import Prompt
 from rich.progress import Progress
 from functools import partial
 import os
+import sys
 import asyncio
 import traceback
 import warnings
@@ -56,8 +57,7 @@ def get_urls(options) -> list[str]:
         urls.extend(options.urls)
     if options.file:
         with open(options.file, "r") as f:
-            content = f.read()
-            urls.extend(content.split("\n"))
+            urls.extend(line.strip() for line in f if line.strip())
     return urls
 
 
@@ -123,7 +123,7 @@ async def main() -> None:
             error.print_error()
             if logging.debug_mode:
                 traceback.print_exc()
-            exit(1)
+            sys.exit(1)
 
 
 async def download_series(source: Source, series: Series, args, config: Config) -> None:
@@ -170,8 +170,8 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
         logging.skip_task(progress, task, skip_reason)
         return
 
-    # Convert PDF-in-epub to PDF if needed (Nextory wraps PDFs in epub containers)
-    if book.metadata.source == "Nextory":
+    # Nextory wraps some books as PDF pages in an epub; not always tagged as pdf
+    if isinstance(book.data, EpubInParts):
         from .output import format_output_location, get_default_format
         from .output.pdf_converter import convert_pdf_epub_to_pdf, is_pdf_in_epub
 
@@ -192,7 +192,7 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
 
         # Handle {ext} placeholder - use default format for the book type
         if ext and ext not in ['{ext}', 'ext'] and ext in get_valid_extensions():
-            output_format = find_output_format(book, ext)()
+            output_format = find_output_format(book, ext)
         else:
             output_format = get_default_format(book)
 

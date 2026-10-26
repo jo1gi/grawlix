@@ -10,6 +10,11 @@ from io import BytesIO
 from pypdf import PdfWriter, PdfReader
 
 
+def pdf_path_for(epub_path: str) -> str:
+    """Path of the PDF that `convert_pdf_epub_to_pdf` creates from epub_path"""
+    return os.path.splitext(epub_path)[0] + '.pdf'
+
+
 def convert_pdf_epub_to_pdf(epub_path: str) -> str:
     """
     Extract embedded PDFs from an epub and merge them into a single PDF.
@@ -17,7 +22,7 @@ def convert_pdf_epub_to_pdf(epub_path: str) -> str:
     :param epub_path: Path to the epub file containing embedded PDFs
     :returns: Path to the created PDF file
     """
-    pdf_path = epub_path.rsplit('.', 1)[0] + '.pdf'
+    pdf_path = pdf_path_for(epub_path)
 
     with zipfile.ZipFile(epub_path, 'r') as zf:
         # Find all PDF files in the epub
@@ -53,16 +58,20 @@ def convert_pdf_epub_to_pdf(epub_path: str) -> str:
 
 def is_pdf_in_epub(epub_path: str) -> bool:
     """
-    Check if an epub contains embedded PDF files instead of HTML.
+    Check if an epub only wraps PDF pages, i.e. it has PDFs but no content
+    pages besides the nav that ebooklib generates
 
     :param epub_path: Path to the epub file
     :returns: True if the epub should be converted to PDF
     """
     try:
         with zipfile.ZipFile(epub_path, 'r') as zf:
-            for name in zf.namelist():
-                if name.endswith('.pdf'):
-                    return True
+            names = zf.namelist()
     except (zipfile.BadZipFile, FileNotFoundError):
-        pass
-    return False
+        return False
+    has_pdf = any(name.endswith('.pdf') for name in names)
+    has_pages = any(
+        name.endswith(('.xhtml', '.html')) and os.path.basename(name) != 'nav.xhtml'
+        for name in names
+    )
+    return has_pdf and not has_pages

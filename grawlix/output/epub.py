@@ -1,5 +1,5 @@
 from grawlix.book import HtmlFiles, HtmlFile, OnlineFile, Book, SingleFile, Metadata, EpubInParts
-from grawlix.exceptions import UnsupportedOutputFormat
+from grawlix.exceptions import UnsupportedOutputFormat, DataNotFound
 from .output_format import OutputFormat, Update
 
 import asyncio
@@ -218,6 +218,8 @@ class Epub(OutputFormat):
             )
             soup = BeautifulSoup(response.text, "lxml")
             selected_element = soup.find(attrs=file.selector)
+            if selected_element is None:
+                raise DataNotFound
             epub_file = epub.EpubHtml(
                 title = file.title,
                 file_name = f"part {index}.html",
@@ -233,7 +235,7 @@ class Epub(OutputFormat):
             for index, file in enumerate(html.htmlfiles)
         ]
         if html.cover:
-            tasks.append(download_cover(html.cover))
+            tasks.insert(0, download_cover(html.cover))
         epub_files = await asyncio.gather(*tasks)
 
         # Add files to epub
@@ -276,6 +278,13 @@ class Epub(OutputFormat):
             return new_size > added_files[filename]
 
         output = epub.EpubBook()
+        output.set_title(metadata.title)
+        if metadata.language:
+            output.set_language(metadata.language)
+        for author in metadata.authors:
+            output.add_author(author)
+        items: dict[str, epub.EpubItem] = {}  # filepath -> item, so bigger copies replace content
+        pages: list[str] = []  # html paths in reading order
         opf_extracted = False
         for file in files:
             await self._download_and_write_file(file, temporary_file_location)
@@ -300,17 +309,15 @@ class Epub(OutputFormat):
                             opf_extracted = True
                             break
 
-                    # Fall back to sniffing pages for fixed-layout markers when
-                    # the OPF doesn't declare rendition:layout (e.g. Nextory)
-                    if not metadata.rendition_layout:
-                        # Check every page, since the first one may be a
-                        # cover or nav page without the viewport marker
-                        if any(
-                            _looks_fixed_layout(zipfile.read(filename))
-                            for filename in zipfile.namelist()
-                            if filename.endswith((".xhtml", ".html"))
-                        ):
-                            metadata.rendition_layout = 'pre-paginated'
+                # Fall back to sniffing pages for fixed-layout markers when
+                # the OPF doesn't declare rendition:layout (e.g. Nextory).
+                # Check every page, since a part may hold only cover or nav pages
+                if not metadata.rendition_layout and any(
+                    _looks_fixed_layout(zipfile.read(filename))
+                    for filename in zipfile.namelist()
+                    if filename.endswith((".xhtml", ".html"))
+                ):
+                    metadata.rendition_layout = 'pre-paginated'
 
                 # Collect CSS files, merging content from all parts
                 for filepath in zipfile.namelist():
@@ -351,58 +358,60 @@ class Epub(OutputFormat):
                     if not should_add_file(zipfile, filepath):
                         continue
                     content = zipfile.read(filepath)
-                    file_size = len(content)
-                    if filepath.endswith("html"):
-                        filename = os.path.basename(filepath)
-                        # Fix fixed-layout pages if we have rendition:layout
-                        if metadata.rendition_layout == 'pre-paginated':
-                            # Find matching CSS (e.g., page1.xhtml -> page1.css)
-                            css_path = filepath.replace('.xhtml', '.css').replace('.html', '.css')
-                            css_content = css_cache.get(css_path)
-                            if css_content:
-                                content = _fix_fixed_layout_page(content, css_content)
-                        is_in_toc = False
-                        title = None
-                        for key, value in data.files_in_toc.items():
-                            toc_filename = key.split("#")[0]
-                            if filename == toc_filename:
-                                title = value
-                                is_in_toc = True
-                                break
+                    added_files[filepath] = len(content)
+                    if filepath in items:
+                        items[filepath].content = content
+                    elif filepath.endswith("html"):
                         # Use EpubItem to preserve original content (link tags, viewport, etc.)
                         # EpubHtml parses and regenerates HTML, stripping these
-                        epub_file = epub.EpubItem(
+                        items[filepath] = epub.EpubItem(
                             file_name = filepath,
                             content = content,
                             media_type = 'application/xhtml+xml'
                         )
-                        output.add_item(epub_file)
-                        # Skip nav.xhtml from spine for fixed-layout (causes blank first page)
-                        is_nav = any(x in filepath.lower() for x in ['nav.xhtml', 'nav.html', 'toc.xhtml', 'toc.html'])
-                        if not (is_nav and metadata.rendition_layout == 'pre-paginated'):
-                            # Check for spine properties (page-spread-left/right)
-                            # Try matching with different path variations
-                            props = None
-                            for href, prop_value in spine_properties.items():
-                                if filepath.endswith(href) or href.endswith(os.path.basename(filepath)):
-                                    props = prop_value
-                                    break
-                            if props:
-                                output.spine.append((epub_file, props))
-                            else:
-                                output.spine.append(epub_file)
-                        if is_in_toc:
-                            output.toc.append(epub_file)
+                        pages.append(filepath)
                     else:
-                        epub_file = epub.EpubItem(
+                        items[filepath] = epub.EpubItem(
                             file_name = filepath,
                             content = content
                         )
-                        output.add_item(epub_file)
-                    added_files[filepath] = file_size
             if update:
                 update(progress)
         os.remove(temporary_file_location)
+
+        for item in items.values():
+            output.add_item(item)
+        is_fixed_layout = metadata.rendition_layout == 'pre-paginated'
+        for filepath in pages:
+            epub_file = items[filepath]
+            if is_fixed_layout:
+                # Find matching CSS (e.g., page1.xhtml -> page1.css)
+                css_path = filepath.replace('.xhtml', '.css').replace('.html', '.css')
+                css_content = css_cache.get(css_path)
+                if css_content:
+                    epub_file.content = _fix_fixed_layout_page(epub_file.content, css_content)
+            # Skip nav.xhtml from spine for fixed-layout (causes blank first page)
+            is_nav = any(x in filepath.lower() for x in ['nav.xhtml', 'nav.html', 'toc.xhtml', 'toc.html'])
+            if not (is_nav and is_fixed_layout):
+                # Spine properties (page-spread-left/right): OPF hrefs are relative
+                # to the OPF dir while zip paths aren't, so match on suffix/basename
+                props = None
+                for href, prop_value in spine_properties.items():
+                    if filepath.endswith(href) or href.endswith(os.path.basename(filepath)):
+                        props = prop_value
+                        break
+                if props:
+                    output.spine.append((epub_file, props))
+                else:
+                    output.spine.append(epub_file)
+            # ebooklib's nav only renders EpubHtml and Link entries
+            filename = os.path.basename(filepath)
+            for key, title in data.files_in_toc.items():
+                toc_filename, _, fragment = key.partition("#")
+                if filename == toc_filename:
+                    href = f"{filepath}#{fragment}" if fragment else filepath
+                    output.toc.append(epub.Link(href, title, f"toc-{len(output.toc)}"))
+                    break
 
         # Add merged CSS files after all parts have been processed
         for css_path, css_content in css_cache.items():

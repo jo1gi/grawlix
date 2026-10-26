@@ -116,7 +116,7 @@ class Marvel(Source[str]):
             series = issue_meta.get("series_title"),
             description = issue_meta.get("description"),
             publisher = "Marvel",
-            release_date = date.fromisoformat(issue_meta.get("release_date_digital")),
+            release_date = date.fromisoformat(release_date[:10]) if (release_date := issue_meta.get("release_date_digital")) else None,
             authors = [c["full_name"] for c in issue_meta["creators"]["extended_list"]] if "extended_list" in issue_meta["creators"] else []
         )
 

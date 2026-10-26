@@ -130,6 +130,12 @@ def _update_epub_metadata(metadata_elem, metadata: Metadata, ns: dict, using_lxm
             for key, value in attribs.items():
                 elem.set(key, value)
 
+    # Clear existing entries before adding, so rewrites don't duplicate them
+    def remove_elements(tag: str, name_prefix: str = None):
+        for elem in list(metadata_elem.findall(tag, ns)):
+            if name_prefix is None or (elem.get('name') or '').startswith(name_prefix):
+                metadata_elem.remove(elem)
+
     # Helper to create meta element
     def create_meta(name: str, content):
         if content is None:
@@ -159,12 +165,16 @@ def _update_epub_metadata(metadata_elem, metadata: Metadata, ns: dict, using_lxm
         meta.text = 'original'
 
     # Authors
+    if metadata.authors:
+        remove_elements(f"{{{ns['dc']}}}creator")
     for author in metadata.authors:
         creator = ET.SubElement(metadata_elem, f"{{{ns['dc']}}}creator")
         creator.text = author
         creator.set(f"{{{ns['opf']}}}role", "aut")
 
     # Translators
+    if metadata.translators:
+        remove_elements(f"{{{ns['dc']}}}contributor")
     for translator in metadata.translators:
         contributor = ET.SubElement(metadata_elem, f"{{{ns['dc']}}}contributor")
         contributor.text = translator
@@ -197,6 +207,8 @@ def _update_epub_metadata(metadata_elem, metadata: Metadata, ns: dict, using_lxm
     update_or_create_element(f"{{{ns['dc']}}}date", release_date_str)
 
     # Category
+    if metadata.category or metadata.tags:
+        remove_elements(f"{{{ns['dc']}}}subject")
     if metadata.category:
         subject = ET.SubElement(metadata_elem, f"{{{ns['dc']}}}subject")
         subject.text = metadata.category
@@ -208,6 +220,7 @@ def _update_epub_metadata(metadata_elem, metadata: Metadata, ns: dict, using_lxm
 
     # Series info (Calibre format) - using series and index fields
     if metadata.series:
+        remove_elements(f"{{{ns['opf']}}}meta", "calibre:series")
         create_meta("calibre:series", metadata.series)
         create_meta("calibre:series_index", metadata.index)
 

@@ -96,7 +96,7 @@ class Nextory(Source):
         :param url: Url to book information page
         :returns: Id in url
         """
-        return url.split("-")[-1].replace("/", "")
+        return parse_url(url).path.split("-")[-1].replace("/", "")
 
 
     async def download_book_from_id(self, book_id: str) -> Book:

@@ -31,7 +31,7 @@
           build-system = [ python3Packages.setuptools ];
 
           patchPhase = ''
-      sed 's/protobuf==3.10.0/protobuf/' requirements.txt > requirements.txt
+      sed -i 's/protobuf==3.10.0/protobuf/' requirements.txt
       '';
 
           doCheck = false;

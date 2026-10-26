@@ -1,5 +1,5 @@
 from grawlix.book import Book, SingleFile, Metadata, OfflineFile
-from grawlix.exceptions import DataNotFound
+from grawlix.exceptions import DataNotFound, SourceNotAuthenticated
 from grawlix import logging
 from .source import Source
 
@@ -21,7 +21,7 @@ class InternetArchive(Source):
         data = ""
         for name, value in fields.items():
             data += f"--{content_type}\x0d\x0aContent-Disposition: form-data; name=\"{name}\"\x0d\x0a\x0d\x0a{value}\x0d\x0a"
-        data += content_type+"--"
+        data += f"--{content_type}--\x0d\x0a"
         return data
 
 
@@ -36,8 +36,7 @@ class InternetArchive(Source):
             headers=headers
         )
         if not "Successful login" in response.text:
-            print("Failed login")
-            exit(1)
+            raise SourceNotAuthenticated
 
 
     async def _download_acsm(self, book_id: str) -> bytes:

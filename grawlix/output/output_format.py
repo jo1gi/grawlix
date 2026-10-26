@@ -1,5 +1,5 @@
 from grawlix.book import Book, SingleFile, OnlineFile, ImageList, HtmlFiles, Book, OfflineFile, BookData
-from grawlix.exceptions import UnsupportedOutputFormat
+from grawlix.exceptions import UnsupportedOutputFormat, AccessDenied, DataNotFound
 from grawlix.encryption import decrypt
 
 import httpx
@@ -61,11 +61,18 @@ class OutputFormat:
         """
         content = b""
         async with self._client.stream("GET", file.url, headers = file.headers, cookies = file.cookies, follow_redirects=True) as request:
-            total_filesize = int(request.headers["Content-length"])
+            if request.status_code in (401, 403):
+                raise AccessDenied
+            if request.is_error:
+                raise DataNotFound
+            total_filesize = int(request.headers.get("Content-Length", 0))
+            # Content-Length counts compressed bytes, so track progress on the wire
+            downloaded = 0
             async for chunk in request.aiter_bytes():
                 content += chunk
-                if update:
-                    update(len(chunk)/total_filesize)
+                if update and total_filesize:
+                    update((request.num_bytes_downloaded - downloaded)/total_filesize)
+                    downloaded = request.num_bytes_downloaded
             if file.encryption is not None:
                 content = decrypt(content, file.encryption)
         return content

@@ -165,4 +165,4 @@ class DcUniverseInfiniteEncryption:
         # The rest of the data is the encrypted image
         encrypted_image = data[24:]
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        return cipher.decrypt(encrypted_image)
+        return cipher.decrypt(encrypted_image)[:original_size]

@@ -6,6 +6,7 @@ from .acsm import Acsm
 from .cbz import Cbz
 from .epub import Epub
 from .pdf import Pdf
+from .pdf_converter import pdf_path_for
 
 from typing import Callable, Optional
 from pathlib import Path
@@ -17,28 +18,34 @@ async def download_book(book: Book, update_func: Callable, template: str) -> Opt
     Download and write book to disk
 
     :param book: Book to download
-    :returns: A skip reason if the book was skipped, otherwise None
     :param update_func: Progress callback
     :param template: Output path template
+    :returns: A skip reason if the book was skipped, otherwise None
     """
     _, ext = os.path.splitext(template)
     ext = ext[1:]
     if ext in get_valid_extensions():
         output_format = find_output_format(book, ext)()
     else:
-        output_format = get_default_format(book)
+        output_format = get_default_format(book)()
     location = format_output_location(book, output_format, template)
-    if not book.overwrite and os.path.exists(location):
+    # Split epubs may have been converted to PDF on an earlier run
+    existing = [location]
+    if isinstance(book.data, EpubInParts):
+        existing.append(pdf_path_for(location))
+    if not book.overwrite and any(os.path.exists(path) for path in existing):
         return "Skipping - File already exists"
     parent = Path(location).parent
     if not parent.exists():
         os.makedirs(parent)
-    await output_format.download(book, location, update_func)
-    await output_format.close()
+    try:
+        await output_format.download(book, location, update_func)
+    finally:
+        await output_format.close()
     return None
 
 
-def format_output_location(book: Book, output_format: OutputFormat, template: str) -> str:
+def format_output_location(book: Book, output_format: OutputFormat | type[OutputFormat], template: str) -> str:
     """
     Create path to output location of book
 
@@ -47,14 +54,11 @@ def format_output_location(book: Book, output_format: OutputFormat, template: st
     :param template: Template for output path (supports ~, environment variables, and absolute paths)
     :returns: Output path
     """
+    # Expand ~ and environment variables in the template only, so metadata
+    # values like "$HOME" or "~" are kept literal
+    template = os.path.expandvars(os.path.expanduser(template))
     values = { key: remove_unwanted_chars(value) for key, value in book.metadata.as_dict().items() }
     path = template.format(**values, ext = output_format.extension)
-
-    # Expand user home directory (~/... or ~user/...)
-    path = os.path.expanduser(path)
-
-    # Expand environment variables ($VAR or %VAR% depending on OS)
-    path = os.path.expandvars(path)
 
     # Normalize path separators for current OS
     path = os.path.normpath(path)
@@ -116,14 +120,14 @@ def remove_unwanted_chars(input: str) -> str:
         # Decode, ignoring partial characters at the end
         output = output_bytes.decode('utf-8', errors='ignore').rstrip()
 
-    # Ensure we don't return an empty string
-    if not output:
+    # "." and ".." would escape the intended directory
+    if not output or output in (".", ".."):
         output = "untitled"
 
     return output
 
 
-def get_default_format(book: Book) -> OutputFormat:
+def get_default_format(book: Book) -> type[OutputFormat]:
     """
     Get default output format for bookdata.
     Should only be used if no format was specified by the user
@@ -138,8 +142,7 @@ def get_default_format(book: Book) -> OutputFormat:
         extension = "cbz"
     elif isinstance(bookdata, HtmlFiles) or isinstance(bookdata, EpubInParts):
         extension = "epub"
-    output_format = find_output_format(book, extension)
-    return output_format()
+    return find_output_format(book, extension)
 
 
 def find_output_format(book: Book, extension: str) -> type[OutputFormat]:

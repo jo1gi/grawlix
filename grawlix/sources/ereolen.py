@@ -22,9 +22,9 @@ class Ereolen(Source):
     library_domains = importlib.resources.files("grawlix") \
         .joinpath("assets/ereolen/libraries.txt") \
         .read_text("utf8") \
-        .split("\n")
+        .split()
     match: list[str] = [
-        rf"https://(www.)?({'|'.join(library_domains)})/reader\?orderid=.+$",
+        rf"https://(www.)?({'|'.join(map(re.escape, library_domains))})/reader\?orderid=.+$",
     ]
     _authentication_methods = [ "login" ]
 

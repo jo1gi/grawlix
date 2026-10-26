@@ -1,6 +1,6 @@
 from .output_format import OutputFormat, Update, Book
 from grawlix.book import ImageList, OnlineFile
-from grawlix.exceptions import UnsupportedOutputFormat
+from grawlix.exceptions import UnsupportedOutputFormat, DataNotFound
 from .metadata.comicinfo import to_comic_info
 
 from zipfile import ZipFile
@@ -19,6 +19,8 @@ class Cbz(OutputFormat):
         semaphore = asyncio.Semaphore(10)
         images = book.data.images
         image_count = len(images)
+        if image_count == 0:
+            raise DataNotFound
         with ZipFile(location, mode="w") as zip:
             async def download_page(index: int, file: OnlineFile):
                 async with semaphore:
@@ -31,5 +33,5 @@ class Cbz(OutputFormat):
                 asyncio.create_task(download_page(index, file))
                 for index, file in enumerate(images)
             ]
-            await asyncio.wait(tasks)
+            await asyncio.gather(*tasks)
             zip.writestr("ComicInfo.xml", to_comic_info(book.metadata))

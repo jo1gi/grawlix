@@ -127,9 +127,9 @@ class Storytel(Source):
             metadata = metadata,
             data = SingleFile(
                 OnlineFile(
+                    # Signed CDN url; sent without headers so the bearer token isn't leaked
                     url = epub_url,
                     extension = "epub",
-                    headers = self._client.headers
                 )
             )
         )
