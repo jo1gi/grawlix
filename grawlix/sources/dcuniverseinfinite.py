@@ -65,7 +65,7 @@ class DcUniverseInfinite(Source):
         Download comic pages
 
         :param book_id: Id of comic
-        :return: List of comic pages
+        :returns: List of comic pages
         """
         response = await self._client.get(
             f"https://www.dcuniverseinfinite.com/api/5/1/rights/comic/{book_id}?trans=en"
@@ -99,7 +99,7 @@ class DcUniverseInfinite(Source):
         Download book metadata
 
         :param book_id: Id of book
-        :return: Book metadata
+        :returns: Book metadata
         """
         response = await self._client.get(
             f"https://www.dcuniverseinfinite.com/api/comics/1/book/{book_id}/?trans=en"
@@ -118,7 +118,7 @@ class DcUniverseInfinite(Source):
         Extract book or series id from url
 
         :param url: Url of page with id
-        :return: Type (book or series) and id
+        :returns: Type (book or series) and id
         """
         match_index = self.get_match_index(url)
         if match_index == 0:
@@ -158,12 +158,11 @@ class DcUniverseInfiniteEncryption:
 
 
     def decrypt(self, data: bytes) -> bytes:
-        # The first 8 bytes contains the size of the output file
+        # First 8 bytes: original (unpadded) size, little-endian
         original_size = int.from_bytes(data[0:8], byteorder="little")
         # The next 16 bytes are the initialization vector
         iv = data[8:24]
         # The rest of the data is the encrypted image
         encrypted_image = data[24:]
-        # Decrypting image
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
         return cipher.decrypt(encrypted_image)

@@ -110,7 +110,6 @@ def _extract_opf_metadata(opf_content: bytes) -> dict:
             'dc': 'http://purl.org/dc/elements/1.1/',
         }
 
-        # Find metadata element
         metadata = root.find('opf:metadata', ns)
         if metadata is None:
             metadata = root.find('{http://www.idpf.org/2007/opf}metadata')
@@ -257,7 +256,7 @@ class Epub(OutputFormat):
 
         added_files: dict[str, int] = {}  # Track filepath -> content size
         opf_metadata: dict = {}
-        css_cache: dict[str, bytes] = {}  # Store CSS content for fixing HTML pages
+        css_cache: dict[str, bytes] = {}  # Merged CSS per path; also used to size fixed-layout pages
         cover_href: str = None  # Store cover image path from OPF
         spine_properties: dict[str, str] = {}  # Store spine properties (href -> properties)
 
@@ -281,13 +280,13 @@ class Epub(OutputFormat):
         for file in files:
             await self._download_and_write_file(file, temporary_file_location)
             with ZipFile(temporary_file_location, "r") as zipfile:
-                # Extract OPF metadata from first OPF file (before skipping)
+                # Read rendition/cover/spine info from the first OPF; OPFs aren't copied (ebooklib writes its own)
                 if not opf_extracted:
                     for filename in zipfile.namelist():
                         if filename.endswith(".opf"):
                             opf_content = zipfile.read(filename)
                             opf_metadata = _extract_opf_metadata(opf_content)
-                            # Store rendition properties in metadata
+                            # Carry OPF properties over to the merged book
                             if opf_metadata.get('rendition_layout'):
                                 metadata.rendition_layout = opf_metadata['rendition_layout']
                             if opf_metadata.get('rendition_spread'):
@@ -343,7 +342,6 @@ class Epub(OutputFormat):
                                         if rule_key not in existing_rules or len(new_rule) > len(existing_rules[rule_key]):
                                             existing_rules[rule_key] = new_rule
 
-                            # Rebuild CSS from merged rules
                             css_cache[filepath] = '\n'.join(existing_rules.values()).encode('utf-8')
 
                 for filepath in zipfile.namelist():
@@ -437,7 +435,6 @@ class Epub(OutputFormat):
                     img_matches = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', content)
                     if img_matches:
                         page_dir = os.path.dirname(first_page.file_name)
-                        # Build lookup dict for item sizes
                         item_sizes = {
                             item.file_name: len(item.content)
                             for item in output.items
@@ -464,7 +461,6 @@ class Epub(OutputFormat):
             # Find the cover image item and mark it as cover
             for item in output.items:
                 if hasattr(item, 'file_name') and item.file_name and item.file_name.endswith(cover_href):
-                    # Get or create item ID
                     item_id = item.id if hasattr(item, 'id') and item.id else os.path.basename(cover_href).replace('.', '-')
                     if not item.id:
                         item.id = item_id

@@ -15,7 +15,7 @@ def convert_pdf_epub_to_pdf(epub_path: str) -> str:
     Extract embedded PDFs from an epub and merge them into a single PDF.
 
     :param epub_path: Path to the epub file containing embedded PDFs
-    :return: Path to the created PDF file
+    :returns: Path to the created PDF file
     """
     pdf_path = epub_path.rsplit('.', 1)[0] + '.pdf'
 
@@ -56,7 +56,7 @@ def is_pdf_in_epub(epub_path: str) -> bool:
     Check if an epub contains embedded PDF files instead of HTML.
 
     :param epub_path: Path to the epub file
-    :return: True if the epub contains PDF files
+    :returns: True if the epub should be converted to PDF
     """
     try:
         with zipfile.ZipFile(epub_path, 'r') as zf:

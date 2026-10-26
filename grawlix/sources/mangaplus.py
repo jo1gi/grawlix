@@ -49,6 +49,7 @@ class MangaPlus(Source):
                 "secret": "2afb69fbb05f57a1856cf75e1c4b6ee6"
             },
         )
+        # Responses are schemaless protobuf decoded by field number (no .proto available)
         data, _ = blackboxprotobuf.protobuf_to_json(response.content)
         parsed = json.loads(data)
         title = parsed["1"]["8"]["1"]["2"]
@@ -75,7 +76,7 @@ class MangaPlus(Source):
         Download issue from Manga Plus
 
         :param issue_id: Identifier for issue
-        :returns: Issue metadata
+        :returns: Book
         """
         url = f"https://jumpg-webapi.tokyo-cdn.com/api/manga_viewer?chapter_id={issue_id}&split=yes&img_quality=super_high"
         response = await self._client.get(url)

@@ -34,7 +34,7 @@ class Nextory(Source):
                 "locale": LOCALE,
             }
         )
-        # Login for account
+        # Account login: yields the login token
         session_response = await self._client.post(
             "https://api.nextory.com/user/v1/sessions",
             json = {
@@ -52,7 +52,7 @@ class Nextory(Source):
                 "X-Country-Code": country,
             }
         )
-        # Login for user
+        # Profile login: API calls also need a profile token
         profiles_response = await self._client.get(
             "https://api.nextory.com/user/v1/me/profiles",
         )
@@ -72,7 +72,7 @@ class Nextory(Source):
 
     @staticmethod
     def _create_device_id() -> str:
-        """Create unique device id"""
+        """Fixed device id (uuid3 of a constant), so every run looks like the same device"""
         return str(uuid.uuid3(uuid.NAMESPACE_DNS, "audiobook-dl"))
 
 
@@ -94,7 +94,7 @@ class Nextory(Source):
         the book.
 
         :param url: Url to book information page
-        :return: Id in url
+        :returns: Id in url
         """
         return url.split("-")[-1].replace("/", "")
 
@@ -108,7 +108,7 @@ class Nextory(Source):
     async def _download_book(self, book_id: str) -> Book:
         product_data = await self._get_product_data(book_id)
         _, format_id = self._find_format(product_data)
-        # Nextory serves all books via epub endpoint regardless of original format
+        # Nextory serves every book via the epub endpoint; PDFs arrive wrapped in an epub (see pdf_converter)
         data = await self._get_epub_data(format_id)
         metadata = self._extract_metadata(product_data)
 
@@ -123,7 +123,7 @@ class Nextory(Source):
         Fetch product data from Nextory API
 
         :param book_id: Id of book (can be URL id or internal id)
-        :return: Product data dictionary
+        :returns: Product data dictionary
         """
         response = await self._client.get(
             f"https://api.nextory.com/library/v1/products/{book_id}",
@@ -146,7 +146,7 @@ class Nextory(Source):
         Extract metadata from Nextory product data
 
         :param product_data: Product data from Nextory API
-        :return: Metadata object
+        :returns: Metadata object
         """
         # Find epub or pdf format for format-specific metadata
         ebook_format = None
@@ -208,14 +208,11 @@ class Nextory(Source):
         Download epub data for book
 
         :param epub_id: Id of epub file
-        :return: Epub data
+        :returns: Epub data
         """
-        # Nextory books are for some reason split up into multiple epub files -
-        # one for each chapter file. All of these files has to be decrypted and
-        # combined afterwards. Many of the provided epub files contain the same
-        # files and some of them contain the same file names but with variation
-        # in the content and comments that describe what should have been there
-        # if the book was whole from the start.
+        # Nextory splits books into one encrypted epub per chapter. Parts overlap:
+        # the same paths recur, sometimes as stubs or with placeholder comments,
+        # so they are decrypted and merged into one epub on output.
         response = await self._client.get(
             f"https://api.nextory.com/reader/books/{epub_id}/packages/epub"
         )
@@ -233,7 +230,7 @@ class Nextory(Source):
             for part in epub_data["spines"]
         ]
         files_in_toc = {}
-        for item in epub_data["toc"]["childrens"]: # Why is it "childrens"?
+        for item in epub_data["toc"]["childrens"]: # (sic) API field name
             files_in_toc[item["src"]] = item["name"]
         return EpubInParts(
             files,

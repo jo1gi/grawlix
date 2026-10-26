@@ -63,7 +63,7 @@ class Storytel(Source):
 
 
     async def reauthenticate(self) -> None:
-        """Reauthenticate if required"""
+        """Log in again every 10th download to refresh the JWT"""
         if self.__download_counter > 0 and self.__download_counter % 10 == 0:
             await self.authenticate()
 
@@ -93,7 +93,7 @@ class Storytel(Source):
         Extract id from url
 
         :param url: Url containing id
-        :return: Id
+        :returns: Id
         """
         parsed = parse_url(url)
         if parsed.path is None:
@@ -104,7 +104,7 @@ class Storytel(Source):
     # Book download path
 
     async def download_book_from_id(self, book_id: str) -> Book:
-        # Epub location
+        # Endpoint redirects to the epub; the url is in the Location header
         response = await self._client.get(
             f"https://api.storytel.net/assets/v2/consumables/{book_id}/ebook",
         )
@@ -121,7 +121,6 @@ class Storytel(Source):
         details = response.json()
         logging.debug(f"Full book details JSON: {json.dumps(details, indent=2)}")
 
-        # Extract metadata from details
         metadata = self._extract_metadata(details)
 
         book = Book(
@@ -142,7 +141,7 @@ class Storytel(Source):
         Extract metadata from Storytel book details JSON
 
         :param details: Book details from Storytel API
-        :return: Metadata object
+        :returns: Metadata object
         """
         # Extract ebook-specific format data
         ebook_format = None
@@ -151,7 +150,6 @@ class Storytel(Source):
                 ebook_format = fmt
                 break
 
-        # Extract basic metadata
         title = details.get("title", "Unknown")
         original_title = details.get("originalTitle")
         authors = [author["name"] for author in details.get("authors", [])]
@@ -170,7 +168,7 @@ class Storytel(Source):
             isbn = ebook_format.get("isbn")
             release_date_str = ebook_format.get("releaseDate")
             if release_date_str:
-                # Parse ISO format date
+                # fromisoformat() only accepts a trailing "Z" from Python 3.11
                 release_date = datetime.fromisoformat(release_date_str.replace("Z", "+00:00")).date()
 
         # Extract series information
@@ -207,7 +205,7 @@ class Storytel(Source):
 
         :param url: Url of list page
         :param list_type: Type of list (either series, authors, or narrators)
-        :return: List of books
+        :returns: List of books
         """
         list_id = self.extract_id_from_url(url)
         logging.debug(f"{list_id=}")
@@ -232,13 +230,16 @@ class Storytel(Source):
         languages: str = "en,de,tr,ar,ru,pl,it,es,sv,fr,nl",
         formats: str = "abook,ebook,podcast",
     ) -> dict[str, Any]:
-        """Download details about book list
-
-        :param formats: comma separated list of formats (abook,ebook,podcast)
-        :param languages: comma separated list of languages (en,de,tr,ar,ru,pl,it,es,sv,fr,nl)
         """
-        # API returns only 10 items per request, so we need to paginate
-        # Start with None to ensure we enter the loop and make the first request
+        Download details about book list, following pagination
+
+        :param list_id: Id of list
+        :param list_type: series, authors or narrators
+        :param languages: Comma separated language codes
+        :param formats: Comma separated formats (abook,ebook,podcast)
+        :returns: First page of list details with items from all pages
+        """
+        # API returns 10 items per page; follow nextPageToken until exhausted
         result: dict[str, Any] = {"nextPageToken": None}
         is_first_page = True
 

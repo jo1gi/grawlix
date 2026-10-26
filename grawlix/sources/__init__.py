@@ -24,7 +24,7 @@ def load_source(url: str) -> Source:
     Will save loaded sources in cache
 
     :param url: Url of book to download
-    :returns: Source type for downloading url
+    :returns: Cached source instance for url
     """
     source_cls = find_source(url)
     source_name = source_cls.name
@@ -41,7 +41,7 @@ def find_source(url: str) -> type[Source]:
     Find source that matches url
 
     :param url: Url of book to download
-    :returns: Source type for downloading url
+    :returns: Cached source instance for url
     """
     for cls in get_source_classes():
         for num, match in enumerate(cls.match):

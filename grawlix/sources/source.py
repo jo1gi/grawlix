@@ -66,10 +66,10 @@ class Source(Generic[T]):
 
     async def download(self, url: str) -> Result[T]:
         """
-        Download book metadata from source
+        Download book or series from source
 
         :param url: Url of book to download
-        :returns: Book metadata
+        :returns: Book, or Series of book ids
         """
         raise NotImplementedError
 
@@ -79,7 +79,7 @@ class Source(Generic[T]):
         Download book from id
 
         :param book_id: Internal id of book
-        :returns: Downloaded book metadata
+        :returns: Book
         """
         raise NotImplementedError
 

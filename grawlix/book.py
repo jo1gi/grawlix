@@ -84,11 +84,12 @@ class EpubInParts:
     Epub split up into smaller epubs
     """
     files: list[OnlineFile]
-    files_in_toc: dict[str, str]
+    files_in_toc: dict[str, str] # toc src (may include #fragment) -> title
 
 
 @dataclass(slots=True)
 class HtmlFile:
+    """Chapter page; selector is passed as attrs to BeautifulSoup.find to pick the content"""
     title: str
     file: OnlineFile
     selector: Optional[dict[str, str]]
@@ -110,7 +111,7 @@ class Book:
     """Stores information about a book"""
     metadata: Metadata
     data: BookData
-    overwrite: bool = False
+    overwrite: bool = False # Re-download even if the file exists (e.g. ongoing web serials)
 
 T = TypeVar("T")
 

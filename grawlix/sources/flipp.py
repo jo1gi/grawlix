@@ -49,6 +49,7 @@ class Flipp(Source):
         Download series with book ids from Flipp
 
         :param url: Url of series
+        :param language_code: Domain extension (dk, no, se)
         :returns: Series object
         """
         series_id = url.split("/")[-1]
@@ -73,6 +74,7 @@ class Flipp(Source):
         """
         if language_code in self._login_cache:
             return self._login_cache[language_code]
+        # Anonymous sign-in; the response lists every publication and issue for the locale
         login_cache = await self._client.post(
             "https://flippapi.egmontservice.com/api/signin",
             headers = {
@@ -113,7 +115,8 @@ class Flipp(Source):
 
         :param issue_id: Issue identifier
         :param series_id: Series identifier
-        :returns: Book metadata
+        :param language_code: Domain extension (dk, no, se)
+        :returns: Book
         """
         pages = await self._get_pages(issue_id, series_id)
         metadata = await self._get_metadata(issue_id, series_id, language_code)
@@ -132,6 +135,7 @@ class Flipp(Source):
 
         :param issue_id: Issue id
         :param series_id: Series id
+        :param language_code: Domain extension (dk, no, se)
         :returns: Issue metadata
         """
         login_info = await self._download_login_info(language_code)
@@ -159,10 +163,10 @@ class Flipp(Source):
     @staticmethod
     def _extract_issue_id(url: str) -> str:
         """
-        Extract eid from url
+        Extract issue id (edid query param) from url
 
         :param url: Url to extract data from
-        :returns: Eid in url
+        :returns: Issue id
         """
         return get_arg_from_url(url, "edid")
 
@@ -175,7 +179,7 @@ class Flipp(Source):
         :returns: Series id
         """
         response = await self._client.get(f"{BASEURL}/production/default.aspx?pubname=&edid={issue_id}")
-        # TODO Make faster
+        # TODO: avoid fetching the whole reader page just to get publicationguid
         search = re.search(r'publicationguid = "([^"]+)', response.text)
         if search is None:
             raise DataNotFound
@@ -188,14 +192,14 @@ class Flipp(Source):
 
         :param issue_id: Issue id
         :param series_id: Series id
-        :return: Page image links
+        :returns: Page image links
         """
         response = await self._client.get(
             f"{BASEURL}/get_page_groups_from_eid.aspx?pubid={series_id}&eid={issue_id}",
         )
         result = []
         for page in response.json()["pageGroups"]:
-            # Find image id in low quality image url
+            # Strip leading "/" and 9-char filename from low-res url path to get image id
             low_quality_url = urlparse(page["pages"][0]["image"])
             image_id = low_quality_url.path[1:-9]
             high_quality_url = f"http://pages.cdn.pagesuite.com/{image_id}/highpage.jpg?method=true"

@@ -17,7 +17,7 @@ class OutputFormat:
 
 
     async def close(self) -> None:
-        """Cleanup"""
+        """Close the HTTP client"""
         await self._client.aclose()
 
 
@@ -34,10 +34,11 @@ class OutputFormat:
 
     async def _download_single_file(self, book: Book, location: str, update_func: Update) -> None:
         """
-        Download and write an `grawlix.SingleFile` to disk
+        Download and write a `grawlix.SingleFile` to disk
 
         :param book: Book to download
         :param location: Path to where the file is written
+        :param update_func: Function to update progress bar
         :raises UnsupportedOutputFormat: If datatype is not supported by format
         """
         if not isinstance(book.data, SingleFile):
@@ -52,10 +53,10 @@ class OutputFormat:
 
     async def _download_file(self, file: OnlineFile, update: Update = None) -> bytes:
         """
-        Download `grawlix.OnlineFile` 
+        Download `grawlix.OnlineFile`
 
         :param file: File to download
-        :param update: Update function that is called with a percentage every time a chunk is downloaded
+        :param update: Called with the fraction of the file received in each chunk
         :returns: Content of downloaded file
         """
         content = b""
@@ -72,11 +73,11 @@ class OutputFormat:
 
     async def _download_and_write_file(self, file: OnlineFile, location: str, update: Update = None) -> None:
         """
-        Download `grawlix.OnlineFile` and write to content to disk
+        Download `grawlix.OnlineFile` and write content to disk
 
         :param file: File to download
         :param location: Path to where the file is written
-        :param update: Update function that is called with a percentage every time a chunk is downloaded
+        :param update: Called with the fraction of the file received in each chunk
         """
         content = await self._download_file(file, update)
         with open(location, "wb") as f:

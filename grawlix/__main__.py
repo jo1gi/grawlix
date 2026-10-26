@@ -14,7 +14,7 @@ import asyncio
 import traceback
 import warnings
 
-# Suppress deprecation warnings from dependencies
+# Silence protobuf UserWarnings triggered via blackboxprotobuf (Manga Plus)
 warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf")
 
 
@@ -63,7 +63,7 @@ def get_urls(options) -> list[str]:
 
 def get_cookie_file(options) -> Optional[str]:
     """
-    Get path to cookie file
+    Get path to cookie file: --cookies if it exists, otherwise ./cookies.txt if present
 
     :param options: Cli arguments
     :returns: Path to cookie file
@@ -113,7 +113,7 @@ async def main() -> None:
                 with logging.progress(result.metadata.title, source.name) as progress:
                     # Check CLI flag first, then config file, then default
                     template: str = args.output or config.output or "{title}.{ext}"
-                    # Check both CLI flag and config file
+                    # Enabled if either the CLI flag or the config file sets it
                     write_metadata = args.write_metadata_to_epub or config.write_metadata_to_epub
                     await download_with_progress(result, progress, template, write_metadata)
             elif isinstance(result, Series):
@@ -130,13 +130,14 @@ async def download_series(source: Source, series: Series, args, config: Config) 
     """
     Download books in series
 
+    :param source: Source to download books from
     :param series: Series to download
     :param args: CLI arguments
     :param config: Configuration
     """
     # Check CLI flag first, then config file, then default
     template = args.output or config.output or "{series}/{title}.{ext}"
-    # Check both CLI flag and config file
+    # Enabled if either the CLI flag or the config file sets it
     write_metadata = args.write_metadata_to_epub or config.write_metadata_to_epub
     with logging.progress(series.title, source.name, len(series.book_ids)) as progress:
         for book_id in series.book_ids:
@@ -164,7 +165,6 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
     task = logging.add_book(progress, book)
     update_function = partial(progress.advance, task)
 
-    # Download the book
     skip_reason = await download_book(book, update_function, template)
     if skip_reason is not None:
         logging.skip_task(progress, task, skip_reason)
@@ -182,7 +182,6 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
             convert_pdf_epub_to_pdf(location)
             logging.debug(f"Converted PDF-in-epub to PDF: {location}")
 
-    # Write metadata if requested
     if write_metadata:
         from .output import format_output_location, get_default_format, find_output_format, get_valid_extensions
         from .output.metadata import epub_metadata
@@ -200,7 +199,6 @@ async def download_with_progress(book: Book, progress: Progress, template: str, 
         location = format_output_location(book, output_format, template)
         logging.debug(f"Output location: {location}, exists={os.path.exists(location)}, ends_with_epub={location.endswith('.epub')}")
 
-        # Write metadata if it's an EPUB file
         if location.endswith('.epub') and os.path.exists(location):
             epub_metadata.write_metadata_to_epub(book.metadata, location)
 

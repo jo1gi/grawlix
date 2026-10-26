@@ -16,7 +16,7 @@ def get_arg_from_url(url: str, key: str) -> str:
 @lru_cache
 def levenstein_distance(a: str, b: str) -> int:
     """
-    Calculates the levenstein distance between `a` and `b`
+    Calculates the Levenshtein distance between `a` and `b`
 
     https://en.wikipedia.org/wiki/Levenshtein_distance
     """
@@ -36,7 +36,7 @@ def levenstein_distance(a: str, b: str) -> int:
 
 def nearest_string(input: str, list: list[str]) -> str:
     """
-    Finds the nearest string in `list` to `input` based on levenstein distance
+    Finds the nearest string in `list` to `input` based on Levenshtein distance
     """
     return sorted(list, key = lambda x: levenstein_distance(input, x))[0]
 

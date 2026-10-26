@@ -7,7 +7,7 @@ from .source import Source
 import re
 from datetime import date
 
-# Personal marvel ip key
+# Marvel developer API key; requests must send developer.marvel.com as Referer
 API_KEY = "83ac0da31d3f6801f2c73c7e07ad76e8"
 
 class Marvel(Source[str]):
@@ -83,7 +83,7 @@ class Marvel(Source[str]):
         Download issue id from url
 
         :param url: Url to issue info page
-        :return: Issue id
+        :returns: Issue id
         """
         response = await self._client.get(url)
         search = re.search(r"\"digitalComicID\":(\d+)", response.text)

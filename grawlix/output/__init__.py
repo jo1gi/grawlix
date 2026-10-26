@@ -7,7 +7,7 @@ from .cbz import Cbz
 from .epub import Epub
 from .pdf import Pdf
 
-from typing import Callable, Iterable, Optional
+from typing import Callable, Optional
 from pathlib import Path
 import os
 import platform
@@ -18,6 +18,8 @@ async def download_book(book: Book, update_func: Callable, template: str) -> Opt
 
     :param book: Book to download
     :returns: A skip reason if the book was skipped, otherwise None
+    :param update_func: Progress callback
+    :param template: Output path template
     """
     _, ext = os.path.splitext(template)
     ext = ext[1:]
@@ -60,19 +62,6 @@ def format_output_location(book: Book, output_format: OutputFormat, template: st
     return path
 
 
-def remove_strings(input: str, strings: Iterable[str]) -> str:
-    """
-    Remove strings from input
-
-    :param input: the string to remove strings from
-    :param strings: the list of strings to remove from input
-    :returns: input without strinfs
-    """
-    for c in strings:
-        input = input.replace(c, "")
-    return input
-
-
 def remove_unwanted_chars(input: str) -> str:
     """
     Sanitize string for use in file paths across all operating systems.
@@ -112,12 +101,10 @@ def remove_unwanted_chars(input: str) -> str:
 
     else:
         # Unix-like systems (macOS, Linux)
-        # Only / is truly forbidden, but : can cause issues on macOS
+        # Only / is forbidden on POSIX; : is replaced too since macOS Finder shows it as /
         output = output.replace('/', '-')
-        # Some versions of macOS have issues with :
         output = output.replace(':', '-')
 
-    # Remove leading/trailing whitespace
     output = output.strip()
 
     # Limit filename length (most filesystems have 255 byte limit)
@@ -142,7 +129,7 @@ def get_default_format(book: Book) -> OutputFormat:
     Should only be used if no format was specified by the user
 
     :param book: Content of book
-    :returns: OutputFormat object matching the default
+    :returns: OutputFormat type matching the default
     """
     bookdata = book.data
     if isinstance(bookdata, SingleFile):
@@ -162,7 +149,7 @@ def find_output_format(book: Book, extension: str) -> type[OutputFormat]:
     :param book: Book to download
     :param extension: Extension of output file
     :returns: Compatible OutputFormat type
-    :raises: UnsupportedOutputFormat if nothing is found
+    :raises UnsupportedOutputFormat: If nothing is found
     """
     for output_format in get_output_formats():
         matches_extension = output_format.extension == extension

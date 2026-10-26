@@ -38,21 +38,17 @@ def write_metadata_to_epub(metadata: Metadata, epub_path: str) -> None:
         for prefix, uri in NAMESPACES.items():
             ET.register_namespace(prefix, uri)
 
-    # Create temporary directory for EPUB extraction
     temp_dir = tempfile.mkdtemp()
 
     try:
-        # Extract EPUB
         with zipfile.ZipFile(epub_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
 
-        # Find OPF file
         opf_path = _find_opf_file(temp_dir)
         if not opf_path:
             logging.debug("Could not find OPF file in EPUB")
             return
 
-        # Parse OPF file
         if using_lxml:
             parser = ET.XMLParser(recover=True, encoding='utf-8')
             tree = ET.parse(opf_path, parser)
@@ -61,7 +57,6 @@ def write_metadata_to_epub(metadata: Metadata, epub_path: str) -> None:
 
         root = tree.getroot()
 
-        # Find metadata element
         if using_lxml:
             metadata_elem = root.find('.//opf:metadata', NAMESPACES)
         else:
@@ -71,22 +66,18 @@ def write_metadata_to_epub(metadata: Metadata, epub_path: str) -> None:
             logging.debug("Could not find metadata element in OPF")
             return
 
-        # Update metadata
         _update_epub_metadata(metadata_elem, metadata, NAMESPACES, using_lxml)
 
-        # Write updated OPF
         if using_lxml:
             tree.write(opf_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
         else:
             tree.write(opf_path, encoding='utf-8', xml_declaration=True)
 
-        # Repack EPUB
         _repack_epub(temp_dir, epub_path)
 
         logging.debug("Successfully wrote metadata to EPUB")
 
     finally:
-        # Cleanup
         shutil.rmtree(temp_dir)
 
 
@@ -201,7 +192,7 @@ def _update_epub_metadata(metadata_elem, metadata: Metadata, ns: dict, using_lxm
         identifier.text = metadata.isbn
         identifier.set(f"{{{ns['opf']}}}scheme", "ISBN")
 
-    # Release Date (convert date to string)
+    # Release date
     release_date_str = metadata.release_date.isoformat() if metadata.release_date else None
     update_or_create_element(f"{{{ns['dc']}}}date", release_date_str)
 
@@ -243,7 +234,6 @@ def _update_epub_metadata(metadata_elem, metadata: Metadata, ns: dict, using_lxm
 
 def _repack_epub(epub_dir: str, output_path: str) -> None:
     """Repack EPUB directory into ZIP file"""
-    # Remove old EPUB
     if os.path.exists(output_path):
         os.remove(output_path)
 
@@ -253,7 +243,6 @@ def _repack_epub(epub_dir: str, output_path: str) -> None:
         if os.path.exists(mimetype_path):
             epub_zip.write(mimetype_path, 'mimetype', compress_type=zipfile.ZIP_STORED)
 
-        # Add all other files
         for root, dirs, files in os.walk(epub_dir):
             for file in files:
                 if file == 'mimetype':
