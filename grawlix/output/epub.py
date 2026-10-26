@@ -58,6 +58,23 @@ def _fix_fixed_layout_page(html_content: bytes, css_content: bytes = None) -> by
     return html_str.encode('utf-8')
 
 
+_VIEWPORT_PX_RE = re.compile(
+    rb'<meta(?=[^>]*name="viewport")[^>]*content="width=\d+,\s*height=\d+"'
+)
+
+
+def _looks_fixed_layout(html_content: bytes) -> bool:
+    """
+    Detect fixed-layout pages by their pixel-sized viewport meta tag.
+
+    Some sources (e.g. Nextory) never declare rendition:layout in the OPF,
+    even though every page is an absolutely-positioned, fixed-pixel-canvas
+    export. Without this, such books get written out as reflowable, which
+    scrambles the layout in readers.
+    """
+    return bool(_VIEWPORT_PX_RE.search(html_content))
+
+
 def _get_css_rule_key(rule_text: str) -> str | None:
     """Get unique key for a CSS rule. For @font-face, include font-family."""
     selector = rule_text.split('{')[0].strip()
@@ -283,6 +300,18 @@ class Epub(OutputFormat):
                                 spine_properties.update(opf_metadata['spine_properties'])
                             opf_extracted = True
                             break
+
+                    # Fall back to sniffing pages for fixed-layout markers when
+                    # the OPF doesn't declare rendition:layout (e.g. Nextory)
+                    if not metadata.rendition_layout:
+                        # Check every page, since the first one may be a
+                        # cover or nav page without the viewport marker
+                        if any(
+                            _looks_fixed_layout(zipfile.read(filename))
+                            for filename in zipfile.namelist()
+                            if filename.endswith((".xhtml", ".html"))
+                        ):
+                            metadata.rendition_layout = 'pre-paginated'
 
                 # Collect CSS files, merging content from all parts
                 for filepath in zipfile.namelist():
