@@ -1,7 +1,7 @@
 from grawlix.logging import print_error_file
 
-ISSUE_URL = "https://github.com/jo1gi/grawlix/issues"
-REPO_URL = "https://github.com/jo1gi/grawlix"
+ISSUE_URL = "https://github.com/ballaballaballa/grawlix/issues"
+REPO_URL = "https://github.com/ballaballaballa/grawlix"
 
 class GrawlixError(Exception):
     error_file: str

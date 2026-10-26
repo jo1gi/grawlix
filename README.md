@@ -1,10 +1,11 @@
 # grawlix
-![GitHub release](https://img.shields.io/github/v/release/jo1gi/grawlix)
-![GitHub top language](https://img.shields.io/github/languages/top/jo1gi/grawlix)
-![License](https://img.shields.io/github/license/jo1gi/grawlix)
-[![Donate using Ko-Fi](https://img.shields.io/badge/donate-kofi-00b9fe?logo=ko-fi&logoColor=00b9fe)](https://ko-fi.com/jo1gi)
+![GitHub top language](https://img.shields.io/github/languages/top/ballaballaballa/grawlix)
+![License](https://img.shields.io/github/license/ballaballaballa/grawlix)
 
 CLI ebook downloader
+
+This is a fork of [jo1gi/grawlix](https://github.com/jo1gi/grawlix). Consider
+[supporting the original author](https://ko-fi.com/jo1gi).
 
 ## Supported services
 grawlix currently supports downloading from the following sources:
@@ -23,16 +24,19 @@ grawlix currently supports downloading from the following sources:
 
 ## Installation
 
-### From pypi (recommended)
+This fork is not published on PyPI. `pip install grawlix` installs the
+upstream version, which does not include the changes in this fork.
+
+Install directly from the repo:
 ```shell
-pip install grawlix
+pip install git+https://github.com/ballaballaballa/grawlix.git
 ```
 
-### From repo (unstable)
+Or from a local clone:
 ```shell
-git clone https://github.com/jo1gi/grawlix.git
+git clone https://github.com/ballaballaballa/grawlix.git
 cd grawlix
-python3 setup.py install
+pip install .
 ```
 
 ## Authentication
