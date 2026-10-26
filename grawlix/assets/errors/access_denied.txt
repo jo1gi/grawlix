@@ -1,3 +1,0 @@
-[red]ERROR: Access denied[/red]
-
-You do not have access to the book you are trying to download.
