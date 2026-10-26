@@ -242,8 +242,15 @@ class Nextory(Source):
 
     @staticmethod
     def _fix_key(value: str) -> bytes:
-        """Remove unused data and decode key"""
-        return base64.b64decode(value[:-1])
+        """
+        Decode a base64 key/iv. Some responses append a single stray
+        character after the (correctly padded) base64 data. Valid base64 is
+        always a multiple of 4 long, so strip the last character only when
+        the length is off. Decoding as-is and falling back on error is not
+        enough: a 32 byte key with a stray character decodes without error
+        to the wrong bytes.
+        """
+        return base64.b64decode(value[:-1] if len(value) % 4 else value)
 
 
     # Series download path
