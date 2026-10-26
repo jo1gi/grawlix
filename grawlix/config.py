@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
-import tomli
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 from platformdirs import user_config_dir
 import os
 
@@ -31,8 +34,8 @@ def load_config() -> Config:
     if os.path.exists(config_file):
         try:
             with open(config_file, "rb") as f:
-                config_dict = tomli.load(f)
-        except tomli.TOMLDecodeError as e:
+                config_dict = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
             print(f"Error parsing config file: {config_file}")
             print(f"  {e}")
             print("\nPlease check your TOML syntax. Common issues:")

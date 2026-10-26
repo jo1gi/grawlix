@@ -1,5 +1,5 @@
 {
-  description = "Forgotten Robot";
+  description = "grawlix - CLI ebook downloader";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -55,7 +55,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             (pkgs.python3.withPackages(ps: with ps; [
-              appdirs
+              platformdirs
               beautifulsoup4
               blackboxprotobuf
               ebooklib
@@ -63,8 +63,10 @@
               importlib-resources
               lxml
               pycryptodome
+              pypdf
               rich
               tomli
+              urllib3
 
               # Test
               pytest
